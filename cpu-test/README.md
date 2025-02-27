@@ -22,18 +22,18 @@
 1.  To run `completions` request run the following:
     ```bash
     curl http://vllm-cpu-test.nirro.svc.cluster.local:5678/v1/chat/completions \ 
-     -H "Content-Type: application/json" \
-     -d '{
-    "model": "lora1",
-    "messages": [
-      {
-        "role": "system",
-        "content": "You are a helpful assistant."
-      },
-      {
-        "role": "user",
-        "content": "write a simple python random generator"
-      }
-    ]
-    }' | jq
+        -H "Content-Type: application/json" \
+        -d '{
+              "model": "lora1",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "You are a helpful assistant."
+                },
+                {
+                  "role": "user",
+                  "content": "write a simple python random generator"
+                }
+              ]
+            }' | jq
     ```
