@@ -19,7 +19,7 @@
     curl http://vllm-cpu-test.nirro.svc.cluster.local:5678/v1/models | jq
     ```
 
-1.  To run `completions` request run the following:
+1.  To run `chat/completions` request run the following:
     ```bash
     curl http://vllm-cpu-test.nirro.svc.cluster.local:5678/v1/chat/completions -H "Content-Type: application/json" \
          -d '{
@@ -34,5 +34,16 @@
                   "content": "write a simple python random generator"
                 }
               ]
+            }' | jq
+    ```
+
+1. To run `completions` request run the following:
+    ```bash
+    curl http://vllm-cpu-test.nirro.svc.cluster.local:5678/v1/completions -H "Content-Type: application/json" \
+         -d '{
+              "model": "lora1",
+              "prompt": "Write as if you were a critic: San Francisco",
+              "max_tokens": 100,
+              "temperature": 0
             }' | jq
     ```
