@@ -23,7 +23,7 @@
     ```bash
     curl http://vllm-cpu-test.default.svc.cluster.local:5678/v1/chat/completions -H "Content-Type: application/json" \
          -d '{
-              "model": "lora1",
+              "model": "tweet-summary-1",
               "messages": [
                 {
                   "role": "system",
@@ -41,7 +41,7 @@
     ```bash
     curl http://vllm-cpu-test.default.svc.cluster.local:5678/v1/completions -H "Content-Type: application/json" \
          -d '{
-              "model": "lora1",
+              "model": "tweet-summary-1",
               "prompt": "Write as if you were a critic: San Francisco",
               "max_tokens": 100,
               "temperature": 0
