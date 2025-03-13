@@ -5,7 +5,7 @@ This quickstart guide is intended for engineers familiar with k8s and model serv
 ## **Prerequisites**
  - Envoy Gateway [v1.3.0](https://gateway.envoyproxy.io/docs/install/install-yaml/#install-with-yaml) or higher
  - A cluster with:
-    - Support for services of typs `LoadBalancer`. (This can be validated by ensuring your Envoy Gateway is up and running).
+   - Support for services of type `LoadBalancer`. (This can be validated by ensuring your Envoy Gateway is up and running).
    For example, with Kind, you can follow [these steps](https://kind.sigs.k8s.io/docs/user/loadbalancer).
     - Support for [sidecar containers](https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/) (enabled by default since Kubernetes v1.29)
    to run the model server deployment.
@@ -35,6 +35,13 @@ This quickstart guide is intended for engineers familiar with k8s and model serv
    ```
 
 #### CPU-Based Model Server
+
+   For this setup, we use approximately 9.5GB of memory and 12 CPUs for each replica.  
+   While it is possible to deploy the model server with less resources, this is not recommended.  
+   For example, in our tests, loading the model using 8GB of memory and 1 CPU was possible but took almost 3.5 minutes and inference requests took unreasonable time.  
+   In general, there is a tradeoff between the memory and CPU we allocate to our pods and the performance. The more memory and CPU we allocate the better performance we can get.  
+   After running multiple configurations of these values we decided in this sample to use 9.5GB of memory and 12 CPUs for each replica, which gives reasonable response times. You can increase those numbers and potentially may even get better response times.
+   For modifying the allocated resources, adjust the numbers in `./config/manifests/vllm/cpu-deployment.yaml` as needed.  
 
    Deploy a sample vLLM deployment with the proper protocol to work with the LLM Instance Gateway.
    ```bash
