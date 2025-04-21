@@ -145,7 +145,7 @@ func run() error {
 		Namespace: *poolNamespace,
 		Name:      *poolName,
 	}
-	mgr, err := runserver.NewDefaultManager(poolNamespacedName, cfg)
+	mgr, err := runserver.NewDefaultManager(poolNamespacedName, cfg, *certPath)
 	if err != nil {
 		setupLog.Error(err, "Failed to create controller manager")
 		return err

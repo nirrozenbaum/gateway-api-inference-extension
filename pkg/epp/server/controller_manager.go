@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/gateway-api-inference-extension/api/v1alpha2"
 )
 
@@ -41,7 +42,7 @@ func init() {
 }
 
 // defaultManagerOptions returns the default options used to create the manager.
-func defaultManagerOptions(namespacedName types.NamespacedName) ctrl.Options {
+func defaultManagerOptions(namespacedName types.NamespacedName, webhookCertDir string) ctrl.Options {
 	return ctrl.Options{
 		Scheme: scheme,
 		Cache: cache.Options{
@@ -67,12 +68,13 @@ func defaultManagerOptions(namespacedName types.NamespacedName) ctrl.Options {
 				},
 			},
 		},
+		WebhookServer: webhook.NewServer(webhook.Options{CertDir: webhookCertDir}),
 	}
 }
 
 // NewDefaultManager creates a new controller manager with default configuration.
-func NewDefaultManager(namespacedName types.NamespacedName, restConfig *rest.Config) (ctrl.Manager, error) {
-	manager, err := ctrl.NewManager(restConfig, defaultManagerOptions(namespacedName))
+func NewDefaultManager(namespacedName types.NamespacedName, restConfig *rest.Config, webhookCertDir string) (ctrl.Manager, error) {
+	manager, err := ctrl.NewManager(restConfig, defaultManagerOptions(namespacedName, webhookCertDir))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create controller manager: %v", err)
 	}
