@@ -36,6 +36,7 @@ import (
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/datastore"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/handlers"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/webhook"
 )
 
 // ExtProcServerRunner provides methods to manage an external process server.
@@ -83,7 +84,7 @@ func NewDefaultExtProcServerRunner() *ExtProcServerRunner {
 
 // SetupWithManager sets up the runner with the given manager.
 func (r *ExtProcServerRunner) SetupWithManager(ctx context.Context, mgr ctrl.Manager) error {
-	// Create the controllers and register them with the manager
+	// Create the controllers and webhook validator and register them with the manager
 	if err := (&controller.InferencePoolReconciler{
 		Datastore: r.Datastore,
 		Client:    mgr.GetClient(),
@@ -104,12 +105,19 @@ func (r *ExtProcServerRunner) SetupWithManager(ctx context.Context, mgr ctrl.Man
 		return fmt.Errorf("failed setting up InferenceModelReconciler: %w", err)
 	}
 
+	if err := (&webhook.InferenceModelValidator{
+		Datastore: r.Datastore,
+		PoolName:  r.PoolName,
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("failed setting up InferenceModel admission validation webhook: %w", err)
+	}
+
 	if err := (&controller.PodReconciler{
 		Datastore: r.Datastore,
 		Client:    mgr.GetClient(),
 		Record:    mgr.GetEventRecorderFor("pod"),
 	}).SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("failed setting up EndpointSliceReconciler: %v", err)
+		return fmt.Errorf("failed setting up PodReconciler: %v", err)
 	}
 	return nil
 }
