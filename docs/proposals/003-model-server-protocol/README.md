@@ -4,8 +4,8 @@ This is the protocol between the EPP and the model servers.
 
 ### Inference API Protocol
 
-The model server MUST implement OpenAI’s [Completions](https://platform.openai.com/docs/api-reference/completions)
-and [Chat](https://platform.openai.com/docs/api-reference/chat) APIs.
+The model server MUST implement OpenAI’s [Completions](https://platform.openai.com/docs/api-reference/completions),
+[Chat](https://platform.openai.com/docs/api-reference/chat) and [Models](https://platform.openai.com/docs/api-reference/models) APIs.
 
 ### Metrics Reporting
 
