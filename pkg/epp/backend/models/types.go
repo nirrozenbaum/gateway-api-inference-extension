@@ -23,7 +23,7 @@ type ModelsResponse struct {
 
 // ModelInfo describes an OpenAI compatible model.
 type ModelInfo struct {
-	// ID the the model identifier, which can be referenced in the API endpoints.
+	// ID is the model identifier, which can be referenced in the API endpoints.
 	ID string `json:"id"`
 	// Object is the object type, which is always "model".
 	Object string `json:"object"`

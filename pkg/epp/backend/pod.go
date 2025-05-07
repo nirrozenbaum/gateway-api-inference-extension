@@ -14,11 +14,9 @@ limitations under the License.
 package backend
 
 import (
-	"context"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/gateway-api-inference-extension/api/v1alpha2"
 )
 
 type Pod struct {
@@ -47,19 +45,3 @@ func (p *Pod) Clone() *Pod {
 		Labels:  p.Labels,
 	}
 }
-
-type Datastore interface {
-	PoolGet() (*v1alpha2.InferencePool, error)
-	// PodMetrics operations
-	// PodGetAll returns all pods and metrics, including fresh and stale.
-	// PodGetAll() []PodMetrics
-	// PodList(func(PodMetrics) bool) []PodMetrics
-}
-
-type Scraper interface {
-	Name() string
-	Scrape(ctx context.Context, pod *Pod) (ScrapeResult, error)
-	ProcessResult(ScrapeResult)
-}
-
-type ScrapeResult interface{}

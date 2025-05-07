@@ -4,8 +4,13 @@ This is the protocol between the EPP and the model servers.
 
 ### Inference API Protocol
 
-The model server MUST implement OpenAI’s [Completions](https://platform.openai.com/docs/api-reference/completions),
-[Chat](https://platform.openai.com/docs/api-reference/chat) and [Models](https://platform.openai.com/docs/api-reference/models) APIs.
+The model server MUST implement OpenAI’s [Completions](https://platform.openai.com/docs/api-reference/completions)
+and [Chat](https://platform.openai.com/docs/api-reference/chat) APIs.
+
+#### ** Experimental **   
+The model server MUST implement Open AI [Models](https://platform.openai.com/docs/api-reference/models) API in order 
+to scrape available models from each of the pods in the pool.   
+This is mainly relevant in cases where not all pods in the pool are identical.
 
 ### Metrics Reporting
 
