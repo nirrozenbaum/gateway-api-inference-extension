@@ -25,10 +25,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	backendmetrics "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/backend/metrics"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/metrics"
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins"
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins/filter"
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins/picker"
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins/scorer"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/filter"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/picker"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/types"
 	errutil "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/util/error"
 	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/util/logging"
@@ -67,7 +66,7 @@ func NewScheduler(datastore Datastore) *Scheduler {
 
 	defaultConfig := NewSchedulerConfig().
 		WithFilters(filter.NewSheddableCapacityFilter(), lowLatencyFilter).
-		WithPicker(&picker.RandomPicker{})
+		WithPicker(picker.NewRandomPicker())
 
 	return NewSchedulerWithConfig(datastore, defaultConfig)
 }
@@ -87,12 +86,12 @@ func NewSchedulerWithConfig(datastore Datastore, config *SchedulerConfig) *Sched
 
 type Scheduler struct {
 	datastore           Datastore
-	preSchedulePlugins  []plugins.PreSchedule
-	filters             []plugins.Filter
-	scorers             []*scorer.WeightedScorer
-	picker              plugins.Picker
-	postSchedulePlugins []plugins.PostSchedule
-	postResponsePlugins []plugins.PostResponse
+	preSchedulePlugins  []framework.PreSchedule
+	filters             []framework.Filter
+	scorers             []*framework.WeightedScorer
+	picker              framework.Picker
+	postSchedulePlugins []framework.PostSchedule
+	postResponsePlugins []framework.PostResponse
 }
 
 type Datastore interface {
@@ -136,7 +135,7 @@ func (s *Scheduler) runPreSchedulePlugins(ctx *types.SchedulingContext) {
 		ctx.Logger.V(logutil.DEBUG).Info("Running pre-schedule plugin", "plugin", plugin.Name())
 		before := time.Now()
 		plugin.PreSchedule(ctx)
-		metrics.RecordSchedulerPluginProcessingLatency(plugins.PreSchedulerPluginType, plugin.Name(), time.Since(before))
+		metrics.RecordSchedulerPluginProcessingLatency(framework.PreSchedulerPluginType, plugin.Name(), time.Since(before))
 	}
 }
 
@@ -149,7 +148,7 @@ func (s *Scheduler) runFilterPlugins(ctx *types.SchedulingContext) []types.Pod {
 		loggerDebug.Info("Running filter plugin", "plugin", filter.Name())
 		before := time.Now()
 		filteredPods = filter.Filter(ctx, filteredPods)
-		metrics.RecordSchedulerPluginProcessingLatency(plugins.FilterPluginType, filter.Name(), time.Since(before))
+		metrics.RecordSchedulerPluginProcessingLatency(framework.FilterPluginType, filter.Name(), time.Since(before))
 		loggerDebug.Info("Filter plugin result", "plugin", filter.Name(), "pods", filteredPods)
 		if len(filteredPods) == 0 {
 			break
@@ -173,7 +172,7 @@ func (s *Scheduler) runScorerPlugins(ctx *types.SchedulingContext, pods []types.
 		loggerDebug.Info("Running scorer", "scorer", weightedScorer.Name())
 		before := time.Now()
 		scores := weightedScorer.Score(ctx, pods)
-		metrics.RecordSchedulerPluginProcessingLatency(plugins.ScorerPluginType, weightedScorer.Name(), time.Since(before))
+		metrics.RecordSchedulerPluginProcessingLatency(framework.ScorerPluginType, weightedScorer.Name(), time.Since(before))
 		for pod, score := range scores { // weight is relative to the sum of weights
 			weightedScorePerPod[pod] += score * float64(weightedScorer.Weight())
 		}
@@ -196,7 +195,7 @@ func (s *Scheduler) runPickerPlugin(ctx *types.SchedulingContext, weightedScoreP
 	loggerDebug.Info("Before running picker plugin", "pods weighted score", fmt.Sprint(weightedScorePerPod))
 	before := time.Now()
 	result := s.picker.Pick(ctx, scoredPods)
-	metrics.RecordSchedulerPluginProcessingLatency(plugins.PickerPluginType, s.picker.Name(), time.Since(before))
+	metrics.RecordSchedulerPluginProcessingLatency(framework.PickerPluginType, s.picker.Name(), time.Since(before))
 	loggerDebug.Info("After running picker plugin", "result", result)
 
 	return result
@@ -207,7 +206,7 @@ func (s *Scheduler) runPostSchedulePlugins(ctx *types.SchedulingContext, res *ty
 		ctx.Logger.V(logutil.DEBUG).Info("Running post-schedule plugin", "plugin", plugin.Name())
 		before := time.Now()
 		plugin.PostSchedule(ctx, res)
-		metrics.RecordSchedulerPluginProcessingLatency(plugins.PostSchedulePluginType, plugin.Name(), time.Since(before))
+		metrics.RecordSchedulerPluginProcessingLatency(framework.PostSchedulePluginType, plugin.Name(), time.Since(before))
 	}
 }
 
@@ -236,6 +235,6 @@ func (s *Scheduler) runPostResponsePlugins(ctx *types.SchedulingContext, targetP
 		ctx.Logger.V(logutil.DEBUG).Info("Running post-response plugin", "plugin", plugin.Name())
 		before := time.Now()
 		plugin.PostResponse(ctx, targetPod)
-		metrics.RecordSchedulerPluginProcessingLatency(plugins.PostResponsePluginType, plugin.Name(), time.Since(before))
+		metrics.RecordSchedulerPluginProcessingLatency(framework.PostResponsePluginType, plugin.Name(), time.Since(before))
 	}
 }

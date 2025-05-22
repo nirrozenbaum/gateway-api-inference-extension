@@ -44,10 +44,11 @@ import (
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/metrics"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/metrics/collectors"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling"
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins/filter"
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins/multi/prefix"
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins/picker"
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins/scorer"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/filter"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/multi/prefix"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/picker"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/scorer"
 	runserver "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/server"
 	envutil "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/util/env"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/util/logging"
@@ -198,13 +199,13 @@ func run() error {
 
 		schedulerConfig := scheduling.NewSchedulerConfig().
 			WithFilters(filter.NewSheddableCapacityFilter()).
-			WithScorers(scorer.NewWeightedScorer(&scorer.QueueScorer{}, queueScorerWeight),
-				scorer.NewWeightedScorer(&scorer.KVCacheScorer{}, kvCacheScorerWeight)).
+			WithScorers(framework.NewWeightedScorer(&scorer.QueueScorer{}, queueScorerWeight),
+				framework.NewWeightedScorer(&scorer.KVCacheScorer{}, kvCacheScorerWeight)).
 			WithPicker(picker.NewMaxScorePicker())
 
 		if prefixCacheScheduling == "true" {
 			prefixScorerWeight := envutil.GetEnvInt("PREFIX_CACHE_SCORE_WEIGHT", prefix.DefaultScorerWeight, setupLog)
-			if err := schedulerConfig.AddPlugins(scorer.NewWeightedScorer(prefix.New(loadPrefixCacheConfig()), prefixScorerWeight)); err != nil {
+			if err := schedulerConfig.AddPlugins(framework.NewWeightedScorer(prefix.New(loadPrefixCacheConfig()), prefixScorerWeight)); err != nil {
 				setupLog.Error(err, "Failed to register scheduler plugins")
 				return err
 			}

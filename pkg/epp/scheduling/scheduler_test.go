@@ -25,8 +25,7 @@ import (
 	k8stypes "k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/backend"
 	backendmetrics "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/backend/metrics" // Import config for thresholds
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins"
-	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/plugins/scorer"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/types"
 )
 
@@ -275,14 +274,14 @@ func TestSchedulePlugins(t *testing.T) {
 		{
 			name: "all plugins executed successfully, all scorers with same weight",
 			config: SchedulerConfig{
-				preSchedulePlugins: []plugins.PreSchedule{tp1, tp2},
-				filters:            []plugins.Filter{tp1, tp2},
-				scorers: []*scorer.WeightedScorer{
-					scorer.NewWeightedScorer(tp1, 1),
-					scorer.NewWeightedScorer(tp2, 1),
+				preSchedulePlugins: []framework.PreSchedule{tp1, tp2},
+				filters:            []framework.Filter{tp1, tp2},
+				scorers: []*framework.WeightedScorer{
+					framework.NewWeightedScorer(tp1, 1),
+					framework.NewWeightedScorer(tp2, 1),
 				},
 				picker:              pickerPlugin,
-				postSchedulePlugins: []plugins.PostSchedule{tp1, tp2},
+				postSchedulePlugins: []framework.PostSchedule{tp1, tp2},
 			},
 			input: []*backendmetrics.FakePodMetrics{
 				{Pod: &backend.Pod{NamespacedName: k8stypes.NamespacedName{Name: "pod1"}}},
@@ -297,14 +296,14 @@ func TestSchedulePlugins(t *testing.T) {
 		{
 			name: "all plugins executed successfully, different scorers weights",
 			config: SchedulerConfig{
-				preSchedulePlugins: []plugins.PreSchedule{tp1, tp2},
-				filters:            []plugins.Filter{tp1, tp2},
-				scorers: []*scorer.WeightedScorer{
-					scorer.NewWeightedScorer(tp1, 60),
-					scorer.NewWeightedScorer(tp2, 40),
+				preSchedulePlugins: []framework.PreSchedule{tp1, tp2},
+				filters:            []framework.Filter{tp1, tp2},
+				scorers: []*framework.WeightedScorer{
+					framework.NewWeightedScorer(tp1, 60),
+					framework.NewWeightedScorer(tp2, 40),
 				},
 				picker:              pickerPlugin,
-				postSchedulePlugins: []plugins.PostSchedule{tp1, tp2},
+				postSchedulePlugins: []framework.PostSchedule{tp1, tp2},
 			},
 			input: []*backendmetrics.FakePodMetrics{
 				{Pod: &backend.Pod{NamespacedName: k8stypes.NamespacedName{Name: "pod1"}}},
@@ -319,14 +318,14 @@ func TestSchedulePlugins(t *testing.T) {
 		{
 			name: "filter all",
 			config: SchedulerConfig{
-				preSchedulePlugins: []plugins.PreSchedule{tp1, tp2},
-				filters:            []plugins.Filter{tp1, tp_filterAll},
-				scorers: []*scorer.WeightedScorer{
-					scorer.NewWeightedScorer(tp1, 1),
-					scorer.NewWeightedScorer(tp2, 1),
+				preSchedulePlugins: []framework.PreSchedule{tp1, tp2},
+				filters:            []framework.Filter{tp1, tp_filterAll},
+				scorers: []*framework.WeightedScorer{
+					framework.NewWeightedScorer(tp1, 1),
+					framework.NewWeightedScorer(tp2, 1),
 				},
 				picker:              pickerPlugin,
-				postSchedulePlugins: []plugins.PostSchedule{tp1, tp2},
+				postSchedulePlugins: []framework.PostSchedule{tp1, tp2},
 			},
 			input: []*backendmetrics.FakePodMetrics{
 				{Pod: &backend.Pod{NamespacedName: k8stypes.NamespacedName{Name: "pod1"}}},
@@ -447,7 +446,7 @@ func TestPostResponse(t *testing.T) {
 		{
 			name: "Simple postResponse test",
 			config: SchedulerConfig{
-				postResponsePlugins: []plugins.PostResponse{pr1},
+				postResponsePlugins: []framework.PostResponse{pr1},
 			},
 			input: []*backendmetrics.FakePodMetrics{
 				{Pod: &backend.Pod{NamespacedName: k8stypes.NamespacedName{Name: "pod1"}}},
