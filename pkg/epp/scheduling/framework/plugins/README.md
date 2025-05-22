@@ -1,7 +1,6 @@
 # Scheduling Plugins
 
-This package contains the scheduling plugin interface definitions and
-implementations.
+This package contains the scheduling plugin implementations.
 
 Plugins are organized by the following rule. Follow this rule when adding a new
 plugin.
