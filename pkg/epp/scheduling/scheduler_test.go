@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/backend"
 	backendmetrics "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/backend/metrics" // Import config for thresholds
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework"
-	profilepicker "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/profile-picker"
+	multiprofile "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/multi-profile"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/types"
 )
 
@@ -278,7 +278,7 @@ func TestPostResponse(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		schedulerConfig := NewSchedulerConfig(profilepicker.NewAllProfilesPicker(), map[string]*framework.SchedulerProfile{"default": test.config})
+		schedulerConfig := NewSchedulerConfig(multiprofile.NewAllProfilesPicker(), map[string]*framework.SchedulerProfile{"default": test.config})
 		scheduler := NewSchedulerWithConfig(&fakeDataStore{pods: test.input}, schedulerConfig)
 
 		headers := map[string]string{}

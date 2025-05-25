@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/metrics"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/filter"
+	multiprofile "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/multi-profile"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/picker"
-	profilepicker "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework/plugins/profile-picker"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/types"
 	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/util/logging"
 )
@@ -68,24 +68,24 @@ func NewScheduler(datastore Datastore) *Scheduler {
 		WithFilters(filter.NewSheddableCapacityFilter(), lowLatencyFilter).
 		WithPicker(&picker.RandomPicker{})
 
-	profilePicker := profilepicker.NewAllProfilesPicker()
+	multiProfilePlugin := multiprofile.NewAllProfilesPicker()
 
-	return NewSchedulerWithConfig(datastore, NewSchedulerConfig(profilePicker, map[string]*framework.SchedulerProfile{"default": defaultProfile}))
+	return NewSchedulerWithConfig(datastore, NewSchedulerConfig(multiProfilePlugin, map[string]*framework.SchedulerProfile{"default": defaultProfile}))
 }
 
 // NewSchedulerWithConfig returns a new scheduler with the given scheduler plugins configuration.
 func NewSchedulerWithConfig(datastore Datastore, config *SchedulerConfig) *Scheduler {
 	return &Scheduler{
-		datastore:     datastore,
-		profilePicker: config.profilePicker,
-		profiles:      config.profiles,
+		datastore:          datastore,
+		multiProfilePlugin: config.multiProfilePlugin,
+		profiles:           config.profiles,
 	}
 }
 
 type Scheduler struct {
-	datastore     Datastore
-	profilePicker framework.ProfilePicker
-	profiles      map[string]*framework.SchedulerProfile
+	datastore          Datastore
+	multiProfilePlugin framework.MultiProfilePlugin
+	profiles           map[string]*framework.SchedulerProfile
 }
 
 type Datastore interface {
@@ -112,8 +112,8 @@ func (s *Scheduler) Schedule(ctx context.Context, req *types.LLMRequest) (map[st
 
 	for { // get the next set of profiles to run iteratively based on the request and the previous execution results
 		before := time.Now()
-		profiles := s.profilePicker.Pick(req, s.profiles, profileExecutionResults)
-		metrics.RecordSchedulerPluginProcessingLatency(framework.ProfilePickerType, s.profilePicker.Name(), time.Since(before))
+		profiles := s.multiProfilePlugin.SelectProfiles(req, s.profiles, profileExecutionResults)
+		metrics.RecordSchedulerPluginProcessingLatency(framework.SelectProfileType, s.multiProfilePlugin.Name(), time.Since(before))
 		if len(profiles) == 0 { // profile picker didn't pick any profile to run
 			break
 		}
@@ -132,8 +132,12 @@ func (s *Scheduler) Schedule(ctx context.Context, req *types.LLMRequest) (map[st
 	if len(profileExecutionResults) == 0 {
 		return nil, fmt.Errorf("failed to run any SchedulingProfile for the request - %s", req)
 	}
+	// Process profiles results
+	before := time.Now()
+	finalResults := s.multiProfilePlugin.ProcessProfileResults(req, profileExecutionResults)
+	metrics.RecordSchedulerPluginProcessingLatency(framework.ProcessProfileResultsType, s.multiProfilePlugin.Name(), time.Since(before))
 
-	return profileExecutionResults, nil
+	return finalResults, nil
 }
 
 // OnResponse is invoked during the processing of a response from an inference pod. It will invoke
@@ -155,7 +159,7 @@ func (s *Scheduler) OnResponse(ctx context.Context, resp *types.LLMResponse, tar
 
 	// WORKAROUND until PostResponse is out of Scheduler
 	profileExecutionResults := map[string]*types.Result{}
-	profiles := s.profilePicker.Pick(nil, s.profiles, profileExecutionResults) // all profiles
+	profiles := s.multiProfilePlugin.SelectProfiles(nil, s.profiles, profileExecutionResults) // all profiles
 	for _, profile := range profiles {
 		s.runPostResponsePlugins(sCtx, targetPod, profile)
 	}

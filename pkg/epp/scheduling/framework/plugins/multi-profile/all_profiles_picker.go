@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package profilepicker
+package multiprofile
 
 import (
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/scheduling/framework"
@@ -22,7 +22,7 @@ import (
 )
 
 // compile-time type assertion
-var _ framework.ProfilePicker = &AllProfilesPicker{}
+var _ framework.MultiProfilePlugin = &AllProfilesPicker{}
 
 // NewAllProfilesPicker initializes a new AllProfilesPicker and returns its pointer.
 func NewAllProfilesPicker() *AllProfilesPicker {
@@ -39,10 +39,16 @@ func (p *AllProfilesPicker) Name() string {
 
 // Pick selects the SchedulingProfiles to run from the list of candidate profiles, while taking into consideration the request properties and the
 // previously executed cycles along with their results.
-func (p *AllProfilesPicker) Pick(request *types.LLMRequest, profiles map[string]*framework.SchedulerProfile, executionResults map[string]*types.Result) map[string]*framework.SchedulerProfile {
+func (p *AllProfilesPicker) SelectProfiles(request *types.LLMRequest, profiles map[string]*framework.SchedulerProfile,
+	executionResults map[string]*types.Result) map[string]*framework.SchedulerProfile {
 	if len(profiles) == len(executionResults) { // all profiles have been executed already in previous call
 		return map[string]*framework.SchedulerProfile{}
 	}
 	// return all profiles
 	return profiles
+}
+
+// ProcessProfileResults return results as is without any modification.
+func (p *AllProfilesPicker) ProcessProfileResults(request *types.LLMRequest, results map[string]*types.Result) map[string]*types.Result {
+	return results
 }

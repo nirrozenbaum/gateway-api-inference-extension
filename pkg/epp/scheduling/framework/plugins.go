@@ -21,13 +21,14 @@ import (
 )
 
 const (
-	ProfilePickerType      = "ProfilePicker"
-	PreCyclePluginType     = "PreCycle"
-	FilterPluginType       = "Filter"
-	ScorerPluginType       = "Scorer"
-	PickerPluginType       = "Picker"
-	PostCyclePluginType    = "PostCycle"
-	PostResponsePluginType = "PostResponse"
+	SelectProfileType         = "SelectProfile"
+	PreCyclePluginType        = "PreCycle"
+	FilterPluginType          = "Filter"
+	ScorerPluginType          = "Scorer"
+	PickerPluginType          = "Picker"
+	PostCyclePluginType       = "PostCycle"
+	ProcessProfileResultsType = "ProcessProfileResults"
+	PostResponsePluginType    = "PostResponse"
 )
 
 // Plugin defines the interface for scheduler plugins, combining scoring, filtering,
@@ -37,11 +38,16 @@ type Plugin interface {
 	Name() string
 }
 
-// ProfilePicker selects the SchedulingProfiles to run from a list of candidate profiles, while taking into consideration the request properties
-// and the previously executed SchedluderProfile cycles along with their results.
-type ProfilePicker interface {
+// MultiProfilePlugin defines the interface for handling multi profile scheduling.
+type MultiProfilePlugin interface {
 	Plugin
-	Pick(request *types.LLMRequest, profiles map[string]*SchedulerProfile, executionResults map[string]*types.Result) map[string]*SchedulerProfile
+	// selects the SchedulingProfiles to run from a list of candidate profiles, while taking into consideration the request properties
+	// and the previously executed SchedluderProfile cycles along with their results.
+	SelectProfiles(request *types.LLMRequest, profiles map[string]*SchedulerProfile, executionResults map[string]*types.Result) map[string]*SchedulerProfile
+
+	// ProcessProfileResults handles the outcome of each selected profile.
+	// It may aggregate results, log test profile outputs, or apply custom logic.
+	ProcessProfileResults(request *types.LLMRequest, results map[string]*types.Result) map[string]*types.Result
 }
 
 // PreCycle is called when the scheduler receives a new request and invokes a SchedulerProfile cycle.
