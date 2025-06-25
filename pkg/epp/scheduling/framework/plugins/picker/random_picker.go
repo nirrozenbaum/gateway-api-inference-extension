@@ -94,7 +94,7 @@ func (p *RandomPicker) Pick(ctx context.Context, _ *types.CycleState, scoredPods
 		scoredPods[i], scoredPods[j] = scoredPods[j], scoredPods[i]
 	})
 
-	// if we have enough pods to return keep only the "maxNumOfEndpoints" highest scored pods
+	// if we have enough pods to return keep only the relevant subset
 	if p.maxNumOfEndpoints < len(scoredPods) {
 		scoredPods = scoredPods[:p.maxNumOfEndpoints]
 	}
