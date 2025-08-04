@@ -124,7 +124,7 @@ func TestDetector_IsSaturated(t *testing.T) {
 		expectedSaturation bool
 	}{
 		{
-			name:               "No candidate pods pods",
+			name:               "No candidate pods",
 			config:             defaultConfig,
 			pods:               []backendmetrics.PodMetrics{},
 			expectedSaturation: true, // No capacity = saturated
