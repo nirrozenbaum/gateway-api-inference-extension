@@ -201,8 +201,8 @@ func (tp *testPlugin) TypedName() plugins.TypedName {
 	return tp.typedName
 }
 
-func (tp *testPlugin) ScoringPreference() ScoringPreference {
-	return Balancing
+func (tp *testPlugin) ScoringPreference() ScorerCategory {
+	return Distribution
 }
 
 func (tp *testPlugin) Filter(_ context.Context, _ *types.CycleState, _ *types.LLMRequest, pods []types.Pod) []types.Pod {

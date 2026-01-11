@@ -208,7 +208,7 @@ func (p *Plugin) TypedName() plugins.TypedName {
 }
 
 // ScoringPreference returns the preference the scorer applies when scoring candidate endpoints.
-func (p *Plugin) ScoringPreference() framework.ScoringPreference {
+func (p *Plugin) ScoringPreference() framework.ScorerCategory {
 	return framework.Affinity
 }
 

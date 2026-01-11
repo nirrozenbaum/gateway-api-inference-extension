@@ -58,8 +58,8 @@ func (s *RunningRequestsSizeScorer) TypedName() plugins.TypedName {
 }
 
 // ScoringPreference returns the preference the scorer applies when scoring candidate endpoints.
-func (s *RunningRequestsSizeScorer) ScoringPreference() framework.ScoringPreference {
-	return framework.Balancing
+func (s *RunningRequestsSizeScorer) ScoringPreference() framework.ScorerCategory {
+	return framework.Distribution
 }
 
 // Consumes returns the list of data that is consumed by the plugin.

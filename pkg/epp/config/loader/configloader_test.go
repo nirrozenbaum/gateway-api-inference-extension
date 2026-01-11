@@ -411,8 +411,8 @@ type mockScorer struct{ mockPlugin }
 // compile-time type assertion
 var _ framework.Scorer = &mockScorer{}
 
-func (m *mockScorer) ScoringPreference() framework.ScoringPreference {
-	return framework.Balancing
+func (m *mockScorer) ScoringPreference() framework.ScorerCategory {
+	return framework.Distribution
 }
 
 func (m *mockScorer) Score(context.Context, *types.CycleState, *types.LLMRequest, []types.Pod) map[types.Pod]float64 {

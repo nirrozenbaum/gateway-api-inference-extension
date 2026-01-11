@@ -56,7 +56,7 @@ func (s *LoraAffinityScorer) TypedName() plugins.TypedName {
 }
 
 // ScoringPreference returns the preference the scorer applies when scoring candidate endpoints.
-func (s *LoraAffinityScorer) ScoringPreference() framework.ScoringPreference {
+func (s *LoraAffinityScorer) ScoringPreference() framework.ScorerCategory {
 	return framework.Affinity
 }
 
