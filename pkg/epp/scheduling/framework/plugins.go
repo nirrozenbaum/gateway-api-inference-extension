@@ -76,7 +76,7 @@ type Filter interface {
 // If a scorer returns value lower than 0, it will be treated as score 0.
 type Scorer interface {
 	plugins.Plugin
-	ScoringPreference() ScorerCategory
+	Category() ScorerCategory
 	Score(ctx context.Context, cycleState *types.CycleState, request *types.LLMRequest, pods []types.Pod) map[types.Pod]float64
 }
 

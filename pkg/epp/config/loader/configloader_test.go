@@ -411,7 +411,7 @@ type mockScorer struct{ mockPlugin }
 // compile-time type assertion
 var _ framework.Scorer = &mockScorer{}
 
-func (m *mockScorer) ScoringPreference() framework.ScorerCategory {
+func (m *mockScorer) Category() framework.ScorerCategory {
 	return framework.Distribution
 }
 

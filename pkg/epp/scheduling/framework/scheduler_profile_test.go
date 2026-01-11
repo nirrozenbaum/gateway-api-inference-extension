@@ -201,7 +201,7 @@ func (tp *testPlugin) TypedName() plugins.TypedName {
 	return tp.typedName
 }
 
-func (tp *testPlugin) ScoringPreference() ScorerCategory {
+func (tp *testPlugin) Category() ScorerCategory {
 	return Distribution
 }
 

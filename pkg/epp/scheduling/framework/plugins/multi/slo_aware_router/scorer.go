@@ -186,8 +186,8 @@ func (s *SLOAwareRouter) TypedName() plugins.TypedName {
 	return s.typedName
 }
 
-// ScoringPreference returns the preference the scorer applies when scoring candidate endpoints.
-func (s *SLOAwareRouter) ScoringPreference() framework.ScorerCategory {
+// Category returns the preference the scorer applies when scoring candidate endpoints.
+func (s *SLOAwareRouter) Category() framework.ScorerCategory {
 	return framework.Balance
 }
 

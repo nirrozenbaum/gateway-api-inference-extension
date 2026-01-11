@@ -57,8 +57,8 @@ func (s *QueueScorer) TypedName() plugins.TypedName {
 	return s.typedName
 }
 
-// ScoringPreference returns the preference the scorer applies when scoring candidate endpoints.
-func (s *QueueScorer) ScoringPreference() framework.ScorerCategory {
+// Category returns the preference the scorer applies when scoring candidate endpoints.
+func (s *QueueScorer) Category() framework.ScorerCategory {
 	return framework.Distribution
 }
 
