@@ -20,7 +20,7 @@ SCRIPT_ROOT=$(dirname "${BASH_SOURCE}")
 cd ${SCRIPT_ROOT}/..
 
 ## Setup vllm-sim
-kubectl apply -f ./config/manifests/bbr/sim-deployment.yaml
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/bbr/sim-deployment.yaml
 
 ## Deploy Inference Pool and EPP
 IGW_CHART_VERSION=v0
@@ -42,7 +42,7 @@ helm install bbr \
 oci://us-central1-docker.pkg.dev/k8s-staging-images/gateway-api-inference-extension/charts/body-based-routing
 
 ## appy configmap for adapters
-kubectl apply -f ./config/manifests/bbr/configmap.yaml
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/bbr/configmap.yaml
 
 ## Upgrade Inference Pool and EPP
 helm upgrade vllm-llama3-8b-instruct oci://us-central1-docker.pkg.dev/k8s-staging-images/gateway-api-inference-extension/charts/inferencepool \
