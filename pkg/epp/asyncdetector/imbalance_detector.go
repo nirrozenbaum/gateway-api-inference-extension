@@ -32,12 +32,8 @@ import (
 
 const (
 	ImbalanceDetectorType = "imbalance-detector"
-	// dwellTimeCycles is the number of cycles that we need to wait after signal changes before changing it again.
-	dwellTimeCycles = 3
-
-	// TODO weights should be configurable/tunable
-	weightKVUtil           = 0.5
-	weightAssignedRequests = 0.5
+	signalSmoothingRatio  = 0.1 //  0.1 weight for previous signal and 0.9 to the new one, for smoothing the signal
+	minTotalRequests      = 5   // avoid false positives from extremely low traffic, at least 5 requests to trigger ratio calculation
 )
 
 // compile-time type assertion
@@ -58,11 +54,8 @@ type ImbalanceDetector struct {
 	ds        datastore.Datastore // temp, we should consume endpoints through datalayer endpoints data source (doesn't exist yet, Etai is working on)
 	interval  time.Duration
 	ratio     float64
-	lock      sync.Mutex // TODO lock on ratio
-
-	startOnce sync.Once // ensures the refresh loop goroutine is started only once
-	stopOnce  sync.Once // ensures the done channel is closed only once
-	done      chan struct{}
+	lock      sync.RWMutex
+	startOnce sync.Once // ensures the detector goroutine is started only once
 }
 
 func (d *ImbalanceDetector) TypedName() plugin.TypedName {
@@ -80,19 +73,20 @@ func (d *ImbalanceDetector) Consumes() map[string]any {
 
 func (d *ImbalanceDetector) Start(ctx context.Context) {
 	d.startOnce.Do(func() {
+		log.FromContext(ctx).Info("Starting async detector", "TypedName", d.typedName)
 		go func() {
-			log.FromContext(ctx).Info("Starting async detector", "TypedName", d.typedName)
 			ticker := time.NewTicker(d.interval)
 			defer ticker.Stop()
 			for {
 				select {
-				case <-d.done:
-					return
 				case <-ctx.Done():
 					return
 				case <-ticker.C: // refresh metrics periodically
 					// TODO check dwell time. if we're on dwell time skip the call
-					d.ratio = d.refreshSignal()
+					signalRatio := d.refreshSignal()
+					d.lock.Lock()
+					d.ratio = signalSmoothingRatio*d.ratio + (1-signalSmoothingRatio)*signalRatio
+					d.lock.Unlock()
 				}
 			}
 		}()
@@ -100,6 +94,8 @@ func (d *ImbalanceDetector) Start(ctx context.Context) {
 }
 
 func (d *ImbalanceDetector) SignalRatio() float64 {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
 	return d.ratio
 }
 
@@ -109,34 +105,55 @@ func (d *ImbalanceDetector) refreshSignal() float64 {
 		return 0
 	}
 
-	kvUtililzationValues := make([]float64, len(endpoints))
-	assignedRequestsValues := make([]float64, len(endpoints))
-	totalRequests := float64(0)
+	kvUtilizationPerEndpoint := make([]float64, len(endpoints))
+	// requestsPerEndpoint represents the requests that were already assigned to an endpoint and cannot be taken back.
+	// for the purpose of this we summarize (running + waiting requests), since we cannot take back requests from the waiting queue.
+	requestsPerEndpoint := make([]float64, len(endpoints))
+	totalRequests := 0.0
 
 	for i, endpoint := range endpoints {
 		metrics := endpoint.GetMetrics()
-		kvUtililzationValues[i] = metrics.KVCacheUsagePercent
-		assignedRequestsValues[i] = float64(metrics.RunningRequestsSize) + float64(metrics.WaitingQueueSize)
-		totalRequests += assignedRequestsValues[i]
+		kvUtilizationPerEndpoint[i] = metrics.KVCacheUsagePercent
+		requestsPerEndpoint[i] = float64(metrics.RunningRequestsSize) + float64(metrics.WaitingQueueSize)
+		totalRequests += requestsPerEndpoint[i]
 	}
 
-	// TODO check only if there is some minimal number of requests to avoid noise to prevent false imbalance when few requests exist
+	// gate with minimal number of requests to avoid noise and prevent false imbalance signal when few requests exist.
+	// useful during cold start or getting out of idle state.
+	if totalRequests < minTotalRequests {
+		return 0 // considered balanced
+	}
 
-	cvKvUtil := d.coefficientOfVariation(kvUtililzationValues)
-	cvAssignedRequests := d.coefficientOfVariation(assignedRequestsValues)
+	normalizedRequestsPerEndpoint := make([]float64, len(endpoints))
+	for i := range endpoints {
+		// normalizedRequestsPerEndpoint is within [0,1] range and is representing the number of requests
+		// assigned to the endpoint relative to total num of requests. this allows us to detect imbalance using CV.
+		normalizedRequestsPerEndpoint[i] = requestsPerEndpoint[i] / totalRequests
+	}
+
+	normalizedCvKvUtilization := d.normalizedCV(kvUtilizationPerEndpoint)
+	normalizedCvAssignedRequests := d.normalizedCV(requestsPerEndpoint)
 
 	// TODO emit both CVs as metrics
 
-	return weightKVUtil*d.normalizeCV(cvKvUtil) + weightAssignedRequests*d.normalizeCV(cvAssignedRequests)
+	// TODO calculate formula of the two:
+	return normalizedCvAssignedRequests + normalizedCvKvUtilization
+}
+
+func (d *ImbalanceDetector) normalizedCV(data []float64) float64 {
+	cv := d.coefficientOfVariation(data)
+
+	// math.Sqrt(float64(len(endpoints)-1) is mathematically the max CV for len(endpoints)=N.
+	// since N may change, we normalize the CV by dividing in the max possible CV.
+	// this normalization allows to compare between CVs when N changes (otherwise the scale is different).
+	return cv / math.Sqrt(float64(len(data)-1))
 }
 
 func (d *ImbalanceDetector) coefficientOfVariation(data []float64) float64 {
 	mean, variance := stat.MeanVariance(data, nil)
+	if mean == 0 {
+		return 0
+	}
 	std := math.Sqrt(variance)
 	return (std / mean)
-}
-
-func (d *ImbalanceDetector) normalizeCV(cv float64) float64 {
-	// TODO normalize
-	return cv
 }

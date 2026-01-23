@@ -67,6 +67,11 @@ func (p *SchedulerProfile) WithPicker(picker Picker) *SchedulerProfile {
 	return p
 }
 
+// GetScorers returns the weighted scorers plugins.
+func (p *SchedulerProfile) GetScorers() []*WeightedScorer {
+	return p.scorers
+}
+
 // AddPlugins adds the given plugins to all scheduler plugins according to the interfaces each plugin implements.
 // A plugin may implement more than one scheduler plugin interface.
 // Special Case: In order to add a scorer, one must use the scorer.NewWeightedScorer function in order to provide a weight.
