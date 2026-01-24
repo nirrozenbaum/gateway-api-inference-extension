@@ -50,6 +50,7 @@ import (
 	configapi "sigs.k8s.io/gateway-api-inference-extension/apix/config/v1alpha1"
 	"sigs.k8s.io/gateway-api-inference-extension/internal/runnable"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/common"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/asyncdetector"
 	backendmetrics "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/backend/metrics"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/config"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/config/loader"
@@ -92,6 +93,8 @@ const (
 	EnvSdQueueDepthThreshold       = "SD_QUEUE_DEPTH_THRESHOLD"
 	EnvSdKVCacheUtilThreshold      = "SD_KV_CACHE_UTIL_THRESHOLD"
 	EnvSdMetricsStalenessThreshold = "SD_METRICS_STALENESS_THRESHOLD"
+
+	enableExperimentalAdaptiveConfigurator = "ENABLE_EXPERIMENTAL_ADAPTIVE_CONFIGURATOR"
 )
 
 var (
@@ -267,6 +270,14 @@ func (r *Runner) Run(ctx context.Context) error {
 	setupLog.Info("parsed config", "scheduler-config", r.schedulerConfig)
 
 	scheduler := scheduling.NewSchedulerWithConfig(r.schedulerConfig)
+
+	enableAdaptiveConfigurator := env.GetEnvBool(enableExperimentalAdaptiveConfigurator, false, setupLog)
+	if enableAdaptiveConfigurator {
+		imbalanceDetector := asyncdetector.NewImbalanceDetector(ds, opts.RefreshMetricsInterval)
+		imbalanceDetector.Start(ctx) // start detecting imbalance periodically
+		adaptiveConfigurator := scheduling.NewAdaptiveConfigurator(imbalanceDetector, r.schedulerConfig)
+		adaptiveConfigurator.Run() // TODO should call run that starts a loop, this is a placeholder
+	}
 
 	datalayerMetricsEnabled := r.featureGates[datalayer.ExperimentalDatalayerFeatureGate]
 	if err := r.setupDataLayer(datalayerMetricsEnabled, eppConfig.DataConfig, epf); err != nil {

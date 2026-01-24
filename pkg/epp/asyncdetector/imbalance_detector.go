@@ -93,6 +93,10 @@ func (d *ImbalanceDetector) Start(ctx context.Context) {
 	})
 }
 
+// SignalRatio represent the imbalance state and is bound to the range [0,1].
+// SignalRatio = 0 means that the pool is perfectly balanced.
+// SignalRatio = 1 means the pool is maximally imbalanced.
+// the Signal is monotonic: more imbalance results in larger signal
 func (d *ImbalanceDetector) SignalRatio() float64 {
 	d.lock.RLock()
 	defer d.lock.RUnlock()
@@ -106,7 +110,7 @@ func (d *ImbalanceDetector) refreshSignal() float64 {
 	}
 
 	kvUtilizationPerEndpoint := make([]float64, len(endpoints))
-	// requestsPerEndpoint represents the requests that were already assigned to an endpoint and cannot be taken back.
+	// requestsPerEndpoint represents the irreversible load pressure already assigned to an endpoint and cannot be taken back.
 	// for the purpose of this we summarize (running + waiting requests), since we cannot take back requests from the waiting queue.
 	requestsPerEndpoint := make([]float64, len(endpoints))
 	totalRequests := 0.0
@@ -118,7 +122,7 @@ func (d *ImbalanceDetector) refreshSignal() float64 {
 		totalRequests += requestsPerEndpoint[i]
 	}
 
-	// gate with minimal number of requests to avoid noise and prevent false imbalance signal when few requests exist.
+	// gate with minimal number of requests to avoid noise and prevent false imbalance signal when only few requests exist.
 	// useful during cold start or getting out of idle state.
 	if totalRequests < minTotalRequests {
 		return 0 // considered balanced
@@ -131,17 +135,26 @@ func (d *ImbalanceDetector) refreshSignal() float64 {
 		normalizedRequestsPerEndpoint[i] = requestsPerEndpoint[i] / totalRequests
 	}
 
-	normalizedCvKvUtilization := d.normalizedCV(kvUtilizationPerEndpoint)
-	normalizedCvAssignedRequests := d.normalizedCV(requestsPerEndpoint)
+	normalizedCvKvUtilization := normalizedCoefficientOfVariation(kvUtilizationPerEndpoint)
+	normalizedCvAssignedRequests := normalizedCoefficientOfVariation(normalizedRequestsPerEndpoint)
 
 	// TODO emit both CVs as metrics
 
-	// TODO calculate formula of the two:
-	return normalizedCvAssignedRequests + normalizedCvKvUtilization
+	// TODO calculate formula of the two instead of average:
+	return (normalizedCvAssignedRequests + normalizedCvKvUtilization) / 2
 }
 
-func (d *ImbalanceDetector) normalizedCV(data []float64) float64 {
-	cv := d.coefficientOfVariation(data)
+// NormalizedCoefficientOfVariation calculates the coefficient of variation (CV)
+// and normalizes it by dividing by sqrt(n-1), which is the maximum possible CV
+// for non-negative data with a fixed mean (e.g. proportions or bounded utilization).
+// This normalization makes the result comparable across different N values
+// and bounds the output to [0,1] under those assumptions.
+func normalizedCoefficientOfVariation(data []float64) float64 {
+	if len(data) <= 1 {
+		return 0 // cannot calculate normalized CV for less than 2 endpoints.
+	}
+
+	cv := coefficientOfVariation(data)
 
 	// math.Sqrt(float64(len(endpoints)-1) is mathematically the max CV for len(endpoints)=N.
 	// since N may change, we normalize the CV by dividing in the max possible CV.
@@ -149,9 +162,12 @@ func (d *ImbalanceDetector) normalizedCV(data []float64) float64 {
 	return cv / math.Sqrt(float64(len(data)-1))
 }
 
-func (d *ImbalanceDetector) coefficientOfVariation(data []float64) float64 {
+// CoefficientOfVariation returns the statistics calculation of CV on the given input.
+// CV is a statistical measure showing relative variability, calculated as the standard deviation divided
+// by the mean.
+func coefficientOfVariation(data []float64) float64 {
 	mean, variance := stat.MeanVariance(data, nil)
-	if mean == 0 {
+	if mean <= 0 {
 		return 0
 	}
 	std := math.Sqrt(variance)
