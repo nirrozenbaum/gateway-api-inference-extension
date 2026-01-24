@@ -81,8 +81,7 @@ func (d *ImbalanceDetector) Start(ctx context.Context) {
 				select {
 				case <-ctx.Done():
 					return
-				case <-ticker.C: // refresh metrics periodically
-					// TODO check dwell time. if we're on dwell time skip the call
+				case <-ticker.C: // refresh signal periodically
 					signalRatio := d.refreshSignal()
 					d.lock.Lock()
 					d.ratio = signalSmoothingRatio*d.ratio + (1-signalSmoothingRatio)*signalRatio
@@ -150,10 +149,6 @@ func (d *ImbalanceDetector) refreshSignal() float64 {
 // This normalization makes the result comparable across different N values
 // and bounds the output to [0,1] under those assumptions.
 func normalizedCoefficientOfVariation(data []float64) float64 {
-	if len(data) <= 1 {
-		return 0 // cannot calculate normalized CV for less than 2 endpoints.
-	}
-
 	cv := coefficientOfVariation(data)
 
 	// math.Sqrt(float64(len(endpoints)-1) is mathematically the max CV for len(endpoints)=N.
