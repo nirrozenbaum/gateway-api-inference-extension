@@ -38,7 +38,7 @@ func createProfileData(profile *framework.SchedulerProfile) *ProfileData {
 			continue // don't adapt weights of scorers from type Balance
 		}
 		scorersByCategory[scorer.Category()] = append(scorersByCategory[scorer.Category()], scorer)
-		weight := float64(scorer.Weight()) // TODO should be remove later when weight is changed to float
+		weight := scorer.Weight()
 		originalScorersWeights[scorer] = weight
 		sumOfOriginalWeightsByCategory[scorer.Category()] += weight
 	}
