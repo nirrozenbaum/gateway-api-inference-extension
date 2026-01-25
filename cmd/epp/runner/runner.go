@@ -94,7 +94,20 @@ const (
 	EnvSdKVCacheUtilThreshold      = "SD_KV_CACHE_UTIL_THRESHOLD"
 	EnvSdMetricsStalenessThreshold = "SD_METRICS_STALENESS_THRESHOLD"
 
+	// Adaptive Configurator section
 	enableExperimentalAdaptiveConfigurator = "ENABLE_EXPERIMENTAL_ADAPTIVE_CONFIGURATOR"
+	distributionMinWeightEnvVar            = "ADAPTIVE_CONFIGURATOR_DISTRIBUTION_MIN_WEIGHT"
+	distributionMaxWeightEnvVar            = "ADAPTIVE_CONFIGURATOR_DISTRIBUTION_MAX_WEIGHT"
+	sigmoidS0EnvVar                        = "ADAPTIVE_CONFIGURATOR_SIGMOID_S0"
+	sigmoidKEnvVar                         = "ADAPTIVE_CONFIGURATOR_SIGMOID_K"
+	// Note: distribution and affinity are intentionally asymmetric, where affinity max weight is 0.7
+	// and distribution max weight is 0.8. At equilibrium (r ≈ 0.46), weights are ~50/50.
+	// At r = 0.5, distribution already slightly dominates. the higher the imbalance ratio is, the more
+	// weight we give to the distribution scorers.
+	defaultDistributionMinWeight = 0.3
+	defaultDistributionMaxWeight = 0.8
+	defaultSigmoidS0             = 0.5 // s0 is midpoint, the signal r where sigmoid(r) = 0.5
+	defaultSigmoidK              = 10  // represents the slope/steepness of the sigmoid function. higher k is more aggressive.
 )
 
 var (
@@ -273,10 +286,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	enableAdaptiveConfigurator := env.GetEnvBool(enableExperimentalAdaptiveConfigurator, false, setupLog)
 	if enableAdaptiveConfigurator {
-		imbalanceDetector := asyncdetector.NewImbalanceDetector(ds, opts.RefreshMetricsInterval)
-		imbalanceDetector.Start(ctx) // start detecting imbalance periodically
-		adaptiveConfigurator := scheduling.NewAdaptiveConfigurator(imbalanceDetector, r.schedulerConfig)
-		adaptiveConfigurator.Run() // TODO should call run that starts a loop, this is a placeholder
+		r.startAdaptiveConfigurator(ctx, ds, opts.RefreshMetricsInterval)
 	}
 
 	datalayerMetricsEnabled := r.featureGates[datalayer.ExperimentalDatalayerFeatureGate]
@@ -376,6 +386,20 @@ func setupDatastore(ctx context.Context, epFactory datalayer.EndpointFactory, mo
 		endpointPoolOption := datastore.WithEndpointPool(endpointPool)
 		return datastore.NewDatastore(ctx, epFactory, modelServerMetricsPort, endpointPoolOption), nil
 	}
+}
+
+func (r *Runner) startAdaptiveConfigurator(ctx context.Context, ds datastore.Datastore, metricsRefreshInterval time.Duration) {
+	imbalanceDetector := asyncdetector.NewImbalanceDetector(ds, metricsRefreshInterval)
+	imbalanceDetector.Start(ctx) // start detecting imbalance periodically
+	// expose configuration in env vars for tuning!
+	distributionMinWeight := env.GetEnvFloat(distributionMinWeightEnvVar, defaultDistributionMinWeight, setupLog)
+	distributionMaxWeight := env.GetEnvFloat(distributionMaxWeightEnvVar, defaultDistributionMaxWeight, setupLog)
+	sigmoidS0 := env.GetEnvFloat(sigmoidS0EnvVar, defaultSigmoidS0, setupLog)
+	sigmoidK := env.GetEnvFloat(sigmoidKEnvVar, defaultSigmoidK, setupLog)
+	config := scheduling.NewAdaptiveConfiguratorConfig(distributionMinWeight, distributionMaxWeight,
+		sigmoidS0, sigmoidK)
+	adaptiveConfigurator := scheduling.NewAdaptiveConfigurator(imbalanceDetector, r.schedulerConfig, config)
+	adaptiveConfigurator.Run() // TODO should call run that starts a loop, this is a placeholder
 }
 
 // registerInTreePlugins registers the factory functions of all known plugins
