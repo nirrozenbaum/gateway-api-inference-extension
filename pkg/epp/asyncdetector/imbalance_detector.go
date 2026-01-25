@@ -55,7 +55,6 @@ type ImbalanceDetector struct {
 	interval  time.Duration
 	ratio     float64
 	lock      sync.RWMutex
-	startOnce sync.Once // ensures the detector goroutine is started only once
 }
 
 func (d *ImbalanceDetector) TypedName() plugin.TypedName {
