@@ -35,6 +35,7 @@ const (
 	InferenceObjectiveComponent = "inference_objective"
 	InferencePoolComponent      = "inference_pool"
 	InferenceExtension          = "inference_extension"
+	AdaptiveConfigurator        = "adaptive_configurator"
 
 	// --- Internal Keys (for Legacy/Gauge Usage) ---
 	KVCacheUsagePercentKey = "KVCacheUsagePercent"
@@ -375,6 +376,18 @@ var (
 	)
 )
 
+// --- Adaptive Configurator Metrics ---
+var (
+	imbalanceNormalizedCV = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: AdaptiveConfigurator,
+			Name:      "imbalace_normalized_cv",
+			Help:      metricsutil.HelpMsgWithStability("The imbalance normalized CV value", compbasemetrics.ALPHA),
+		},
+		[]string{"metric"},
+	)
+)
+
 // --- Info Metrics ---
 var InferenceExtensionInfo = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
@@ -464,6 +477,7 @@ func Register(customCollectors ...prometheus.Collector) {
 		metrics.Registry.MustRegister(SchedulerE2ELatency)
 		metrics.Registry.MustRegister(SchedulerAttemptsTotal)
 		metrics.Registry.MustRegister(PluginProcessingLatencies)
+		metrics.Registry.MustRegister(imbalanceNormalizedCV)
 		metrics.Registry.MustRegister(InferenceExtensionInfo)
 		metrics.Registry.MustRegister(PrefixCacheSize)
 		metrics.Registry.MustRegister(PrefixCacheHitRatio)
@@ -511,6 +525,7 @@ func Reset() {
 	SchedulerE2ELatency.Reset()
 	SchedulerAttemptsTotal.Reset()
 	PluginProcessingLatencies.Reset()
+	imbalanceNormalizedCV.Reset()
 	InferenceExtensionInfo.Reset()
 	PrefixCacheSize.Reset()
 	PrefixCacheHitRatio.Reset()
@@ -760,6 +775,11 @@ const (
 // RecordPluginProcessingLatency records the processing latency for a plugin.
 func RecordPluginProcessingLatency(extensionPoint, pluginType, pluginName string, duration time.Duration) {
 	PluginProcessingLatencies.WithLabelValues(extensionPoint, pluginType, pluginName).Observe(duration.Seconds())
+}
+
+// RecordPrefixCacheSize records the CV value representing the metric imbalance.
+func RecordImbalanceNormalizedCV(metricName string, value float64) {
+	imbalanceNormalizedCV.WithLabelValues(metricName).Set(value)
 }
 
 // RecordPrefixCacheSize records the size of the prefix indexer in megabytes.

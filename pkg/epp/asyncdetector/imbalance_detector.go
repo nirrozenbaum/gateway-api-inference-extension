@@ -31,9 +31,11 @@ import (
 )
 
 const (
-	ImbalanceDetectorType = "imbalance-detector"
-	signalSmoothingRatio  = 0.1 //  0.1 weight for previous signal and 0.9 to the new one, for smoothing the signal
-	minTotalRequests      = 5   // avoid false positives from extremely low traffic, at least 5 requests to trigger ratio calculation
+	ImbalanceDetectorType                = "imbalance-detector"
+	signalSmoothingRatio                 = 0.1 //  0.1 weight for previous signal and 0.9 to the new one, for smoothing the signal
+	minTotalRequests                     = 5   // avoid false positives from extremely low traffic, at least 5 requests to trigger ratio calculation
+	kvUtilNormalizedCVMetricKey          = "kv-utilization"
+	assignedRequestNormalizedCVMetricKey = "assigned-requests"
 )
 
 // compile-time type assertion
@@ -131,9 +133,11 @@ func (d *ImbalanceDetector) refreshSignal() float64 {
 
 	normalizedCvKvUtilization := normalizedCoefficientOfVariation(kvUtilizationPerEndpoint)
 	normalizedCvAssignedRequests := normalizedCoefficientOfVariation(normalizedRequestsPerEndpoint)
+	// emit CVs as metrics
+	metrics.RecordImbalanceNormalizedCV(kvUtilNormalizedCVMetricKey, normalizedCvKvUtilization)
+	metrics.RecordImbalanceNormalizedCV(assignedRequestNormalizedCVMetricKey, normalizedCvAssignedRequests)
 
-	// TODO emit both CVs as metrics
-
+	// TODO emit also the final calculation, based on the formula
 	// TODO calculate formula of the two instead of average:
 	return (normalizedCvAssignedRequests + normalizedCvKvUtilization) / 2
 }
