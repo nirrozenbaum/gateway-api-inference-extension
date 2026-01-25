@@ -286,7 +286,7 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	enableAdaptiveConfigurator := env.GetEnvBool(enableExperimentalAdaptiveConfigurator, false, setupLog)
 	if enableAdaptiveConfigurator {
-		r.startAdaptiveConfigurator(ctx, ds, opts.RefreshMetricsInterval)
+		r.setupAdaptiveConfigurator(mgr, ds, opts.RefreshMetricsInterval)
 	}
 
 	datalayerMetricsEnabled := r.featureGates[datalayer.ExperimentalDatalayerFeatureGate]
@@ -388,9 +388,9 @@ func setupDatastore(ctx context.Context, epFactory datalayer.EndpointFactory, mo
 	}
 }
 
-func (r *Runner) startAdaptiveConfigurator(ctx context.Context, ds datastore.Datastore, metricsRefreshInterval time.Duration) {
+func (r *Runner) setupAdaptiveConfigurator(mgr manager.Manager, ds datastore.Datastore, metricsRefreshInterval time.Duration) {
 	imbalanceDetector := asyncdetector.NewImbalanceDetector(ds, metricsRefreshInterval)
-	imbalanceDetector.Start(ctx) // start detecting imbalance periodically
+	mgr.Add(imbalanceDetector) // start detecting imbalance periodically when manager starts
 	// expose configuration in env vars for tuning!
 	distributionMinWeight := env.GetEnvFloat(distributionMinWeightEnvVar, defaultDistributionMinWeight, setupLog)
 	distributionMaxWeight := env.GetEnvFloat(distributionMaxWeightEnvVar, defaultDistributionMaxWeight, setupLog)

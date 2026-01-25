@@ -17,14 +17,14 @@ limitations under the License.
 package asyncdetector
 
 import (
-	"context"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/plugin"
 )
 
 type AsyncDetector interface {
 	plugin.ConsumerPlugin
+	manager.Runnable
 
-	Start(ctx context.Context)
 	SignalRatio() float64
 }

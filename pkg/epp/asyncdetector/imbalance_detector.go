@@ -71,25 +71,21 @@ func (d *ImbalanceDetector) Consumes() map[string]any {
 	}
 }
 
-func (d *ImbalanceDetector) Start(ctx context.Context) {
-	d.startOnce.Do(func() {
-		log.FromContext(ctx).Info("Starting async detector", "TypedName", d.typedName)
-		go func() {
-			ticker := time.NewTicker(d.interval)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-ticker.C: // refresh signal periodically
-					signalRatio := d.refreshSignal()
-					d.lock.Lock()
-					d.ratio = signalSmoothingRatio*d.ratio + (1-signalSmoothingRatio)*signalRatio
-					d.lock.Unlock()
-				}
-			}
-		}()
-	})
+func (d *ImbalanceDetector) Start(ctx context.Context) error {
+	log.FromContext(ctx).Info("Starting async detector", "TypedName", d.typedName)
+	ticker := time.NewTicker(d.interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C: // refresh signal periodically
+			signalRatio := d.refreshSignal()
+			d.lock.Lock()
+			d.ratio = signalSmoothingRatio*d.ratio + (1-signalSmoothingRatio)*signalRatio
+			d.lock.Unlock()
+		}
+	}
 }
 
 // SignalRatio represent the imbalance state and is bound to the range [0,1].
