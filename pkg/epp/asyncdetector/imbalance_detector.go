@@ -35,6 +35,7 @@ const (
 	signalSmoothingRatio                 = 0.1 //  0.1 weight for previous signal and 0.9 to the new one, for smoothing the signal
 	minTotalRequests                     = 5   // avoid false positives from extremely low traffic, at least 5 requests to trigger ratio calculation
 	kvUtilNormalizedCVMetricKey          = "kv-utilization"
+	effectiveKvUtilNormalizedCVMetricKey = "effective-kv-utilization"
 	assignedRequestNormalizedCVMetricKey = "assigned-requests"
 	imbalanceFormulaKVFactor             = 0.6
 )
@@ -140,6 +141,7 @@ func (d *ImbalanceDetector) refreshSignal() float64 {
 	signal := math.Max(normalizedCvAssignedRequests, imbalanceFormulaKVFactor*normalizedCvKvUtilization)
 
 	metrics.RecordImbalanceNormalizedCV(kvUtilNormalizedCVMetricKey, normalizedCvKvUtilization)
+	metrics.RecordImbalanceNormalizedCV(effectiveKvUtilNormalizedCVMetricKey, imbalanceFormulaKVFactor*normalizedCvKvUtilization)
 	metrics.RecordImbalanceNormalizedCV(assignedRequestNormalizedCVMetricKey, normalizedCvAssignedRequests)
 	metrics.RecordImbalanceSignal(signal)
 
