@@ -36,6 +36,7 @@ const (
 	minTotalRequests                     = 5   // avoid false positives from extremely low traffic, at least 5 requests to trigger ratio calculation
 	kvUtilNormalizedCVMetricKey          = "kv-utilization"
 	assignedRequestNormalizedCVMetricKey = "assigned-requests"
+	imbalanceFormulaKVFactor             = 0.6
 )
 
 // compile-time type assertion
@@ -133,13 +134,16 @@ func (d *ImbalanceDetector) refreshSignal() float64 {
 
 	normalizedCvKvUtilization := normalizedCoefficientOfVariation(kvUtilizationPerEndpoint)
 	normalizedCvAssignedRequests := normalizedCoefficientOfVariation(normalizedRequestsPerEndpoint)
-	// emit CVs as metrics
+
+	// final formula properties:
+	// Requests dominate (irreversible load), KV still matters but only when meaningful, no masking of request imbalance by KV
+	signal := math.Max(normalizedCvAssignedRequests, imbalanceFormulaKVFactor*normalizedCvKvUtilization)
+
 	metrics.RecordImbalanceNormalizedCV(kvUtilNormalizedCVMetricKey, normalizedCvKvUtilization)
 	metrics.RecordImbalanceNormalizedCV(assignedRequestNormalizedCVMetricKey, normalizedCvAssignedRequests)
+	metrics.RecordImbalanceSignal(signal)
 
-	// TODO emit also the final calculation, based on the formula
-	// TODO calculate formula of the two instead of average:
-	return (normalizedCvAssignedRequests + normalizedCvKvUtilization) / 2
+	return signal
 }
 
 // NormalizedCoefficientOfVariation calculates the coefficient of variation (CV)
@@ -153,7 +157,10 @@ func normalizedCoefficientOfVariation(data []float64) float64 {
 	// math.Sqrt(float64(len(endpoints)-1) is mathematically the max CV for len(endpoints)=N.
 	// since N may change, we normalize the CV by dividing in the max possible CV.
 	// this normalization allows to compare between CVs when N changes (otherwise the scale is different).
-	return cv / math.Sqrt(float64(len(data)-1))
+	normalizedCV := cv / math.Sqrt(float64(len(data)-1))
+
+	// safe guard just to make sure normalized CV never exceeds 1.
+	return math.Min(1.0, normalizedCV)
 }
 
 // CoefficientOfVariation returns the statistics calculation of CV on the given input.

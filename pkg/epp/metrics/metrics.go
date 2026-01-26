@@ -35,7 +35,7 @@ const (
 	InferenceObjectiveComponent = "inference_objective"
 	InferencePoolComponent      = "inference_pool"
 	InferenceExtension          = "inference_extension"
-	AdaptiveConfigurator        = "adaptive_configurator"
+	adaptiveConfigurator        = "adaptive_configurator"
 
 	// --- Internal Keys (for Legacy/Gauge Usage) ---
 	KVCacheUsagePercentKey = "KVCacheUsagePercent"
@@ -378,13 +378,23 @@ var (
 
 // --- Adaptive Configurator Metrics ---
 var (
+	// imbalanceNormalizedCV represents the imbalance value per metric.
 	imbalanceNormalizedCV = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Subsystem: AdaptiveConfigurator,
+			Subsystem: adaptiveConfigurator,
 			Name:      "imbalace_normalized_cv",
-			Help:      metricsutil.HelpMsgWithStability("The imbalance normalized CV value", compbasemetrics.ALPHA),
+			Help:      metricsutil.HelpMsgWithStability("The imbalance normalized CV value per measured metric", compbasemetrics.ALPHA),
 		},
 		[]string{"metric"},
+	)
+	// imbalanceSignal represents the final imbalance signal after integrating multiple imbalance metrics to a single value.
+	imbalanceSignal = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: adaptiveConfigurator,
+			Name:      "imbalace_signal",
+			Help:      metricsutil.HelpMsgWithStability("The imbalance final signal value", compbasemetrics.ALPHA),
+		},
+		[]string{},
 	)
 )
 
@@ -478,6 +488,7 @@ func Register(customCollectors ...prometheus.Collector) {
 		metrics.Registry.MustRegister(SchedulerAttemptsTotal)
 		metrics.Registry.MustRegister(PluginProcessingLatencies)
 		metrics.Registry.MustRegister(imbalanceNormalizedCV)
+		metrics.Registry.MustRegister(imbalanceSignal)
 		metrics.Registry.MustRegister(InferenceExtensionInfo)
 		metrics.Registry.MustRegister(PrefixCacheSize)
 		metrics.Registry.MustRegister(PrefixCacheHitRatio)
@@ -777,9 +788,14 @@ func RecordPluginProcessingLatency(extensionPoint, pluginType, pluginName string
 	PluginProcessingLatencies.WithLabelValues(extensionPoint, pluginType, pluginName).Observe(duration.Seconds())
 }
 
-// RecordPrefixCacheSize records the CV value representing the metric imbalance.
+// RecordImbalanceNormalizedCV records the CV value representing a single metric imbalance.
 func RecordImbalanceNormalizedCV(metricName string, value float64) {
 	imbalanceNormalizedCV.WithLabelValues(metricName).Set(value)
+}
+
+// RecordImbalanceSignal records the imbalance signal, taking into consideration the various metrics imbalance.
+func RecordImbalanceSignal(value float64) {
+	imbalanceSignal.WithLabelValues().Set(value)
 }
 
 // RecordPrefixCacheSize records the size of the prefix indexer in megabytes.
