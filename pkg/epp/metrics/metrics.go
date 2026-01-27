@@ -537,6 +537,7 @@ func Reset() {
 	SchedulerAttemptsTotal.Reset()
 	PluginProcessingLatencies.Reset()
 	imbalanceNormalizedCV.Reset()
+	imbalanceSignal.Reset()
 	InferenceExtensionInfo.Reset()
 	PrefixCacheSize.Reset()
 	PrefixCacheHitRatio.Reset()
