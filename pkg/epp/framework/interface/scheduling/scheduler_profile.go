@@ -189,7 +189,7 @@ func (p *SchedulerProfile) runScorerPlugins(ctx context.Context, request *LLMReq
 		weightedScorePerEndpoint[endpoint] = float64(0) // initialize weighted score per endpoint with 0 value
 	}
 
-	// snapshort scorers weight, to avoid adaptive weight change during a request handling.
+	// snapshort scorers weight, to avoid adaptive weight change during request handling.
 	scorersWeightsSnapshot := make([]float64, len(p.scorers))
 	p.scorersLock.RLock()
 	for i, scorer := range p.scorers {
