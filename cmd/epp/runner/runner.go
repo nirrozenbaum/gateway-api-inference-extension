@@ -399,8 +399,8 @@ func (r *Runner) setupAdaptiveConfigurator(mgr manager.Manager, ds datastore.Dat
 	config := scheduling.NewAdaptiveConfiguratorConfig(distributionMinWeight, distributionMaxWeight,
 		sigmoidS0, sigmoidK)
 	setupLog.Info("parsed adaptive configurator config", "adaptive-configurator-config", config)
-	adaptiveConfigurator := scheduling.NewAdaptiveConfigurator(imbalanceDetector, r.schedulerConfig, config)
-	adaptiveConfigurator.Run() // TODO should call run that starts a loop, this is a placeholder
+	adaptiveConfigurator := scheduling.NewAdaptiveConfigurator(imbalanceDetector, metricsRefreshInterval, r.schedulerConfig, config)
+	mgr.Add(adaptiveConfigurator) // start adapting weights periodically when manager starts
 }
 
 // registerInTreePlugins registers the factory functions of all known plugins

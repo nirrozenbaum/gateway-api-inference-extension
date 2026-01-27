@@ -17,16 +17,21 @@ limitations under the License.
 package scheduling
 
 import (
+	"context"
 	"math"
+	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/common/util/logging"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/asyncdetector"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/plugin"
 	framework "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling"
 )
 
 // NewAdaptiveConfigurator creates a new AdaptiveConfigurator object and returns its pointer.
-func NewAdaptiveConfigurator(imbalanceDetector *asyncdetector.ImbalanceDetector, schedulerConfig *SchedulerConfig,
-	config *AdaptiveConfiguratorConfig) *AdaptiveConfigurator {
+func NewAdaptiveConfigurator(imbalanceDetector *asyncdetector.ImbalanceDetector, interval time.Duration,
+	schedulerConfig *SchedulerConfig, config *AdaptiveConfiguratorConfig) *AdaptiveConfigurator {
 	profilesData := make(map[string]*ProfileData)
 	for name, profile := range schedulerConfig.profiles {
 		profilesData[name] = createProfileData(profile)
@@ -34,6 +39,7 @@ func NewAdaptiveConfigurator(imbalanceDetector *asyncdetector.ImbalanceDetector,
 
 	adaptiveConfigurator := &AdaptiveConfigurator{
 		imbalanceDetector:     imbalanceDetector,
+		interval:              interval,
 		profiles:              schedulerConfig.profiles,
 		profilesData:          profilesData,
 		distributionMinWeight: config.distributionMinWeight,
@@ -49,6 +55,7 @@ func NewAdaptiveConfigurator(imbalanceDetector *asyncdetector.ImbalanceDetector,
 
 type AdaptiveConfigurator struct {
 	imbalanceDetector     *asyncdetector.ImbalanceDetector
+	interval              time.Duration
 	profiles              map[string]*framework.SchedulerProfile // keep the profiles for locking
 	profilesData          map[string]*ProfileData
 	distributionMinWeight float64
@@ -57,20 +64,26 @@ type AdaptiveConfigurator struct {
 	sigmoidK              float64
 }
 
-// TODO should run periodically
-func (c *AdaptiveConfigurator) Run() {
-	distributionWeight, affinityWeight := c.calculateDesiredWeights()
-	c.adaptWeights(distributionWeight, affinityWeight)
+func (c *AdaptiveConfigurator) Start(ctx context.Context) error {
+	log.FromContext(ctx).Info("Starting adaptive configurator")
+	ticker := time.NewTicker(c.interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C: // adapt scorers weights periodically
+			c.adapt(ctx)
+		}
+	}
 }
 
-// calculateDesiredWeights returns the desired weights (total budget) for distribution and affinity categories.
-func (c *AdaptiveConfigurator) calculateDesiredWeights() (float64, float64) {
-	imbalanceRatio := c.imbalanceDetector.SignalRatio()
-	sigmoidValue := sigmoid(imbalanceRatio, c.sigmoidS0, c.sigmoidK)
+func (c *AdaptiveConfigurator) adapt(ctx context.Context) {
+	distributionWeight, affinityWeight := c.calculateDesiredWeights()
+	log.FromContext(ctx).V(logutil.VERBOSE).Info("adapting scorers weights", "distribution-weight", distributionWeight,
+		"affinity-weight", affinityWeight)
 
-	// weight(D) = wDmin + (sigmoid(ratio) * (wDmax - wDmin))
-	distributionWeight := c.distributionMinWeight + sigmoidValue*(c.distributionMaxWeight-c.distributionMinWeight)
-	return distributionWeight, 1 - distributionWeight // weight(D)+weight(A) = 1
+	c.adaptWeights(distributionWeight, affinityWeight)
 }
 
 func (c *AdaptiveConfigurator) adaptWeights(distributionWeight float64, affinityWeight float64) {
@@ -102,6 +115,16 @@ func (c *AdaptiveConfigurator) adaptWeights(distributionWeight float64, affinity
 		// UpdateScorersWeights is internally synchronized by SchedulerProfile
 		profile.UpdateScorersWeights(updatedWeightsMap)
 	}
+}
+
+// calculateDesiredWeights returns the desired weights (total budget) for distribution and affinity categories.
+func (c *AdaptiveConfigurator) calculateDesiredWeights() (float64, float64) {
+	imbalanceRatio := c.imbalanceDetector.SignalRatio()
+	sigmoidValue := sigmoid(imbalanceRatio, c.sigmoidS0, c.sigmoidK)
+
+	// weight(D) = wDmin + (sigmoid(ratio) * (wDmax - wDmin))
+	distributionWeight := c.distributionMinWeight + sigmoidValue*(c.distributionMaxWeight-c.distributionMinWeight)
+	return distributionWeight, 1 - distributionWeight // weight(D)+weight(A) = 1
 }
 
 // Sigmoid is the "logistic function". generalized sigmoid function with s0 and k where s0 represents the
