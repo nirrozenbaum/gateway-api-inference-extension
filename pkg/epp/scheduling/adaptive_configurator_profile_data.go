@@ -22,7 +22,7 @@ import (
 
 // createProfileData gets a scheduling profile and returns pointer to ProfileData that is needed for adaptive configuration.
 func createProfileData(profile *framework.SchedulerProfile) *ProfileData {
-	activeScorers := profile.GetScorers()
+	activeScorers := profile.GetScorersClone()
 	scorersByCategory := map[framework.ScorerCategory][]*framework.WeightedScorer{
 		framework.Affinity:     {},
 		framework.Distribution: {},

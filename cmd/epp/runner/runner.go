@@ -398,6 +398,7 @@ func (r *Runner) setupAdaptiveConfigurator(mgr manager.Manager, ds datastore.Dat
 	sigmoidK := env.GetEnvFloat(sigmoidKEnvVar, defaultSigmoidK, setupLog)
 	config := scheduling.NewAdaptiveConfiguratorConfig(distributionMinWeight, distributionMaxWeight,
 		sigmoidS0, sigmoidK)
+	setupLog.Info("parsed adaptive configurator config", "adaptive-configurator-config", config)
 	adaptiveConfigurator := scheduling.NewAdaptiveConfigurator(imbalanceDetector, r.schedulerConfig, config)
 	adaptiveConfigurator.Run() // TODO should call run that starts a loop, this is a placeholder
 }

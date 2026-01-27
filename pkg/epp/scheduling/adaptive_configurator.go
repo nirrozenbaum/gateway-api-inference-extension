@@ -20,6 +20,7 @@ import (
 	"math"
 
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/asyncdetector"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/plugin"
 	framework "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling"
 )
 
@@ -74,43 +75,32 @@ func (c *AdaptiveConfigurator) calculateDesiredWeights() (float64, float64) {
 
 func (c *AdaptiveConfigurator) adaptWeights(distributionWeight float64, affinityWeight float64) {
 	for name, profile := range c.profiles {
-		scorersByCategory := c.profilesData[name].scorersByCategory
-		sumOfOriginalWeightsByCategory := c.profilesData[name].sumOfOriginalWeightsByCategory
+		profileData := c.profilesData[name]
+		updatedWeightsMap := map[plugin.TypedName]float64{} // map from scorer TypedName to its new weight
+		sumOfOriginalWeightsByCategory := profileData.sumOfOriginalWeightsByCategory
 
 		// Calculate scaling factors safely
 		distributionSum, distributionOk := sumOfOriginalWeightsByCategory[framework.Distribution]
-		distributionScorersFactor := 0.0
 		if distributionOk && distributionSum > 0 {
-			distributionScorersFactor = distributionWeight / distributionSum
+			distributionScorersFactor := distributionWeight / distributionSum
+			distributionScorers := profileData.scorersByCategory[framework.Distribution]
+			for _, scorer := range distributionScorers {
+				originalWeight := profileData.originalScorersWeights[scorer]
+				updatedWeightsMap[scorer.TypedName()] = originalWeight * distributionScorersFactor
+			}
 		}
 
 		affinitySum, affinityOk := sumOfOriginalWeightsByCategory[framework.Affinity]
-		affinityScorersFactor := 0.0
 		if affinityOk && affinitySum > 0 {
-			affinityScorersFactor = affinityWeight / affinitySum
+			affinityScorersFactor := affinityWeight / affinitySum
+			affinityScorers := profileData.scorersByCategory[framework.Affinity]
+			for _, scorer := range affinityScorers {
+				originalWeight := profileData.originalScorersWeights[scorer]
+				updatedWeightsMap[scorer.TypedName()] = originalWeight * affinityScorersFactor
+			}
 		}
-
-		// TODO // Lock profile while updating scorers weights, to avoid inconsistencies when handling a request.
-		if profile != nil {
-			// TODO profile lock. no need for the if, it's just to avoid compile errors
-		}
-		c.applyScorerWeights(c.profilesData[name], scorersByCategory[framework.Distribution], distributionScorersFactor)
-		c.applyScorerWeights(c.profilesData[name], scorersByCategory[framework.Affinity], affinityScorersFactor)
-		// TODO unlock profile here
-	}
-}
-
-func (c *AdaptiveConfigurator) applyScorerWeights(profileData *ProfileData, scorers []*framework.WeightedScorer, categoryWeightFactor float64) {
-	if categoryWeightFactor <= 0 {
-		return // we might have a case where scorers are applied with no weight, don't adapt.
-	}
-
-	for _, scorer := range scorers {
-		originalWeight := profileData.originalScorersWeights[scorer]
-		newWeight := originalWeight * categoryWeightFactor
-		// TODO update scorer with new weight
-		if newWeight > 0 { // a placeholder so it compiles, no need for the if
-		}
+		// UpdateScorersWeights is internally synchronized by SchedulerProfile
+		profile.UpdateScorersWeights(updatedWeightsMap)
 	}
 }
 

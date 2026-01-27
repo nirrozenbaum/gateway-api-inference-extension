@@ -50,6 +50,7 @@ func NewImbalanceDetector(ds datastore.Datastore, interval time.Duration) *Imbal
 		ds:        ds,
 		interval:  interval,
 		ratio:     0,
+		lock:      sync.RWMutex{},
 	}
 }
 

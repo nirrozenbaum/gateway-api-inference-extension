@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -36,14 +37,16 @@ func NewSchedulerProfile() *SchedulerProfile {
 		filters: []Filter{},
 		scorers: []*WeightedScorer{},
 		// picker remains nil since profile doesn't support multiple pickers
+		scorersLock: sync.RWMutex{},
 	}
 }
 
 // SchedulerProfile provides a profile configuration for the scheduler which influence routing decisions.
 type SchedulerProfile struct {
-	filters []Filter
-	scorers []*WeightedScorer
-	picker  Picker
+	filters     []Filter
+	scorers     []*WeightedScorer
+	picker      Picker
+	scorersLock sync.RWMutex // used to lock scorers when updating/reading weights
 }
 
 // WithFilters sets the given filter plugins as the Filter plugins.
@@ -67,9 +70,35 @@ func (p *SchedulerProfile) WithPicker(picker Picker) *SchedulerProfile {
 	return p
 }
 
-// GetScorers returns the weighted scorers plugins.
-func (p *SchedulerProfile) GetScorers() []*WeightedScorer {
-	return p.scorers
+// GetScorersClone returns a clone of the weighted scorers plugins.
+// Any direct updates in this clone won't have any affect of the weights used in the scheduler profile.
+// in order to update profile's scorers weights, use UpdateScorersWeights function.
+func (p *SchedulerProfile) GetScorersClone() []*WeightedScorer {
+	p.scorersLock.RLock()
+	defer p.scorersLock.RUnlock()
+
+	clone := make([]*WeightedScorer, len(p.scorers))
+	for i, scorer := range p.scorers {
+		clone[i] = &WeightedScorer{Scorer: scorer.Scorer, weight: scorer.weight}
+	}
+
+	return clone
+}
+
+// UpdateScorersWeights is used for adaptive weight change of scorers.
+// The function gets an input a mapping between the scorer TypedName and its new weight.
+// If a given TypedName cannot be found in the existing profile scorers, the entry would be ignored.
+// This essentially means that only weights of existing scorers can be updated. new scorers cannot be added during runtime.
+func (p *SchedulerProfile) UpdateScorersWeights(updatedWeights map[plugin.TypedName]float64) {
+	p.scorersLock.Lock()
+	defer p.scorersLock.Unlock()
+	for typedName, newWeight := range updatedWeights {
+		for _, scorer := range p.scorers {
+			if scorer.TypedName() == typedName {
+				scorer.weight = newWeight
+			}
+		}
+	}
 }
 
 // AddPlugins adds the given plugins to all scheduler plugins according to the interfaces each plugin implements.
@@ -159,15 +188,24 @@ func (p *SchedulerProfile) runScorerPlugins(ctx context.Context, request *LLMReq
 	for _, endpoint := range endpoints {
 		weightedScorePerEndpoint[endpoint] = float64(0) // initialize weighted score per endpoint with 0 value
 	}
+
+	// snapshort scorers weight, to avoid adaptive weight change during a request handling.
+	scorersWeightsSnapshot := make([]float64, len(p.scorers))
+	p.scorersLock.RLock()
+	for i, scorer := range p.scorers {
+		scorersWeightsSnapshot[i] = scorer.Weight()
+	}
+	p.scorersLock.RUnlock()
+
 	// Iterate through each scorer in the chain and accumulate the weighted scores.
-	for _, scorer := range p.scorers {
+	for i, scorer := range p.scorers {
 		logger.V(logutil.VERBOSE).Info("Running scorer plugin", "plugin", scorer.TypedName())
 		before := time.Now()
 		scores := scorer.Score(ctx, cycleState, request, endpoints)
 		metrics.RecordPluginProcessingLatency(ScorerExtensionPoint, scorer.TypedName().Type, scorer.TypedName().Name, time.Since(before))
 		for endpoint, score := range scores { // weight is relative to the sum of weights
 			logger.V(logutil.DEBUG).Info("Calculated score", "plugin", scorer.TypedName(), "endpoint", endpoint.GetMetadata().NamespacedName, "score", score)
-			weightedScorePerEndpoint[endpoint] += enforceScoreRange(score) * scorer.Weight()
+			weightedScorePerEndpoint[endpoint] += enforceScoreRange(score) * scorersWeightsSnapshot[i] // weight is taken from the snapshot
 		}
 		logger.V(logutil.DEBUG).Info("Completed running scorer plugin successfully", "plugin", scorer.TypedName())
 	}
