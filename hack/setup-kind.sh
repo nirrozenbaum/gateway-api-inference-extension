@@ -19,6 +19,8 @@ KIND_NODE_IMAGE=kindest/node:${KUBERNETES_VERSION}
 
 # Set a default CLUSTER_NAME if not provided
 CLUSTER_NAME="test"
+IMAGE_TAG="6a785be-dirty"
+IMAGE="us-central1-docker.pkg.dev/k8s-staging-images/gateway-api-inference-extension/epp:${IMAGE_TAG}"
 
 # Set the host port to map to the Gateway's inbound port (30080)
 GATEWAY_HOST_PORT=30080
@@ -82,7 +84,7 @@ kubectl apply -k https://github.com/kubernetes-sigs/gateway-api-inference-extens
 kubectl apply --server-side -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.4.0/standard-install.yaml
 
 ## Install Istio on macOS
-ISTIO_VERSION=1.28.1
+ISTIO_VERSION=1.28.0
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=${ISTIO_VERSION} sh -
 ./istio-$ISTIO_VERSION/bin/istioctl install \
    --set values.pilot.env.ENABLE_GATEWAY_API_INFERENCE_EXTENSION=true
@@ -92,6 +94,8 @@ rm -r ./istio-$ISTIO_VERSION
 ## Deploy an Inference Gateway
 kubectl apply -f https://github.com/kubernetes-sigs/gateway-api-inference-extension/raw/main/config/manifests/gateway/istio/gateway.yaml
 
+kind load docker-image $IMAGE --name $CLUSTER_NAME
+
 ## Deploy Inference Pool and EPP
 export GATEWAY_PROVIDER=istio
 helm install vllm-llama3-8b-instruct \
@@ -99,10 +103,11 @@ helm install vllm-llama3-8b-instruct \
 --set inferencePool.modelServers.matchLabels.app=vllm-llama3-8b-instruct \
 --set provider.name=$GATEWAY_PROVIDER \
 --set inferenceExtension.flags.v=3 \
---set inferenceExtension.image.tag=6a785be \
+--set inferenceExtension.image.tag=$IMAGE_TAG \
 --set inferenceExtension.image.pullPolicy=IfNotPresent \
---set inferenceExtension.env[0].name=ENABLE_EXPERIMENTAL_ADAPTIVE_CONFIGURATOR \
---set inferenceExtension.env[0].value="true" \
 --set experimentalHttpRoute.enabled=true \
 --version $IGW_CHART_VERSION \
 oci://us-central1-docker.pkg.dev/k8s-staging-images/gateway-api-inference-extension/charts/inferencepool
+
+# --set inferenceExtension.env[0].name=ENABLE_EXPERIMENTAL_ADAPTIVE_CONFIGURATOR \
+# --set inferenceExtension.env[0].value="true" \
