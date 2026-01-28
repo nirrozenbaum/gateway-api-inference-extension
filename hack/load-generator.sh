@@ -14,7 +14,8 @@ while $running; do
     "prompt": "Write as if you were a critic: San Francisco",
     "max_tokens": 1000,
     "temperature": 0
-    }'
+    }' &
+  sleep 1
 done
 
 echo "Cleanup done. Exiting."
