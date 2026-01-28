@@ -84,7 +84,7 @@ func (d *ImbalanceDetector) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C: // refresh signal periodically
-			signalRatio := d.refreshSignal()
+			signalRatio := d.refreshSignal(ctx)
 			d.lock.Lock()
 			d.ratio = signalSmoothingRatio*d.ratio + (1-signalSmoothingRatio)*signalRatio
 			d.lock.Unlock()
@@ -102,9 +102,10 @@ func (d *ImbalanceDetector) SignalRatio() float64 {
 	return d.ratio
 }
 
-func (d *ImbalanceDetector) refreshSignal() float64 {
+func (d *ImbalanceDetector) refreshSignal(ctx context.Context) float64 {
 	endpoints := d.ds.PodList(datastore.AllPodsPredicate)
 	if len(endpoints) <= 1 { // if zero or one endpoints in the pool, the pool is balanced
+		log.FromContext(ctx).Info("num of endpoints lower than minimum", "count", len(endpoints))
 		return 0
 	}
 
@@ -121,9 +122,14 @@ func (d *ImbalanceDetector) refreshSignal() float64 {
 		totalRequests += requestsPerEndpoint[i]
 	}
 
+	log.FromContext(ctx).Info("kv util", "endpoints", kvUtilizationPerEndpoint)
+	log.FromContext(ctx).Info("assigned requests", "endpoints", requestsPerEndpoint)
+	log.FromContext(ctx).Info("total requests", "endpoints", totalRequests)
+
 	// gate with minimal number of requests to avoid noise and prevent false imbalance signal when only few requests exist.
 	// useful during cold start or getting out of idle state.
 	if totalRequests < minTotalRequests {
+		log.FromContext(ctx).Info("total requests lower than minimum", "count", totalRequests)
 		return 0 // considered balanced
 	}
 
