@@ -99,6 +99,10 @@ helm install vllm-llama3-8b-instruct \
 --set inferencePool.modelServers.matchLabels.app=vllm-llama3-8b-instruct \
 --set provider.name=$GATEWAY_PROVIDER \
 --set inferenceExtension.flags.v=3 \
+--set inferenceExtension.image.tag=6a785be \
+--set inferenceExtension.image.pullPolicy=IfNotPresent \
+--set inferenceExtension.env[0].name=ENABLE_EXPERIMENTAL_ADAPTIVE_CONFIGURATOR \
+--set inferenceExtension.env[0].value="true" \
 --set experimentalHttpRoute.enabled=true \
 --version $IGW_CHART_VERSION \
 oci://us-central1-docker.pkg.dev/k8s-staging-images/gateway-api-inference-extension/charts/inferencepool
