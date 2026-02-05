@@ -37,7 +37,7 @@ const (
 	kvUtilNormalizedCVMetricKey          = "kv-utilization"
 	effectiveKvUtilNormalizedCVMetricKey = "effective-kv-utilization"
 	assignedRequestNormalizedCVMetricKey = "assigned-requests"
-	imbalanceFormulaKVFactor             = 0.6
+	imbalanceFormulaKVFactor             = 0.8
 )
 
 // compile-time type assertion
@@ -145,7 +145,7 @@ func (d *ImbalanceDetector) refreshSignal(ctx context.Context) float64 {
 
 	// final formula properties:
 	// Requests dominate (irreversible load), KV still matters but only when meaningful, no masking of request imbalance by KV
-	signal := math.Max(normalizedCvAssignedRequests, imbalanceFormulaKVFactor*normalizedCvKvUtilization)
+	signal := math.Min(normalizedCvAssignedRequests, imbalanceFormulaKVFactor*normalizedCvKvUtilization)
 
 	metrics.RecordImbalanceNormalizedCV(kvUtilNormalizedCVMetricKey, normalizedCvKvUtilization)
 	metrics.RecordImbalanceNormalizedCV(effectiveKvUtilNormalizedCVMetricKey, imbalanceFormulaKVFactor*normalizedCvKvUtilization)
