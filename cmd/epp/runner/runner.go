@@ -98,16 +98,18 @@ const (
 	enableExperimentalAdaptiveConfigurator = "ENABLE_EXPERIMENTAL_ADAPTIVE_CONFIGURATOR"
 	distributionMinWeightEnvVar            = "ADAPTIVE_CONFIGURATOR_DISTRIBUTION_MIN_WEIGHT"
 	distributionMaxWeightEnvVar            = "ADAPTIVE_CONFIGURATOR_DISTRIBUTION_MAX_WEIGHT"
+	conservativeMaxWeightEnvVar            = "ADAPTIVE_CONFIGURATOR_CONSERVATIVE_MAX_WEIGHT"
 	sigmoidS0EnvVar                        = "ADAPTIVE_CONFIGURATOR_SIGMOID_S0"
 	sigmoidKEnvVar                         = "ADAPTIVE_CONFIGURATOR_SIGMOID_K"
 	// Note: distribution and affinity are intentionally asymmetric, where affinity max weight is 0.7
 	// and distribution max weight is 0.8. At equilibrium (r ≈ 0.46), weights are ~50/50.
 	// At r = 0.5, distribution already slightly dominates. the higher the imbalance ratio is, the more
 	// weight we give to the distribution scorers.
-	defaultDistributionMinWeight = 0.3
-	defaultDistributionMaxWeight = 0.8
-	defaultSigmoidS0             = 0.5 // s0 is midpoint, the signal r where sigmoid(r) = 0.5
-	defaultSigmoidK              = 10  // represents the slope/steepness of the sigmoid function. higher k is more aggressive.
+	defaultDistributionMinWeight = 0.2
+	defaultDistributionMaxWeight = 1
+	defaultConservativeMaxWeight = defaultDistributionMaxWeight
+	defaultSigmoidS0             = 0.6 // s0 is midpoint, the signal r where sigmoid(r) = 0.5
+	defaultSigmoidK              = 6   // represents the slope/steepness of the sigmoid function. higher k is more aggressive.
 )
 
 var (
@@ -390,16 +392,21 @@ func setupDatastore(ctx context.Context, epFactory datalayer.EndpointFactory, mo
 
 func (r *Runner) setupAdaptiveConfigurator(mgr manager.Manager, ds datastore.Datastore, metricsRefreshInterval time.Duration) {
 	imbalanceDetector := asyncdetector.NewImbalanceDetector(ds, metricsRefreshInterval)
-	mgr.Add(imbalanceDetector) // start detecting imbalance periodically when manager starts
+	pressureDetector := asyncdetector.NewPressureDetector(ds, metricsRefreshInterval)
+	// start detecting imbalance and pressure periodically when manager starts
+	mgr.Add(imbalanceDetector)
+	mgr.Add(pressureDetector)
 	// expose configuration in env vars for tuning!
 	distributionMinWeight := env.GetEnvFloat(distributionMinWeightEnvVar, defaultDistributionMinWeight, setupLog)
 	distributionMaxWeight := env.GetEnvFloat(distributionMaxWeightEnvVar, defaultDistributionMaxWeight, setupLog)
+	conservativeMaxWeight := env.GetEnvFloat(conservativeMaxWeightEnvVar, defaultConservativeMaxWeight, setupLog)
 	sigmoidS0 := env.GetEnvFloat(sigmoidS0EnvVar, defaultSigmoidS0, setupLog)
 	sigmoidK := env.GetEnvFloat(sigmoidKEnvVar, defaultSigmoidK, setupLog)
 	config := scheduling.NewAdaptiveConfiguratorConfig(distributionMinWeight, distributionMaxWeight,
-		sigmoidS0, sigmoidK)
+		conservativeMaxWeight, sigmoidS0, sigmoidK)
 	setupLog.Info("parsed adaptive configurator config", "adaptive-configurator-config", config)
-	adaptiveConfigurator := scheduling.NewAdaptiveConfigurator(imbalanceDetector, metricsRefreshInterval, r.schedulerConfig, config)
+	adaptiveConfigurator := scheduling.NewAdaptiveConfigurator(imbalanceDetector, pressureDetector,
+		metricsRefreshInterval, r.schedulerConfig, config)
 	mgr.Add(adaptiveConfigurator) // start adapting weights periodically when manager starts
 }
 

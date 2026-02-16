@@ -22,7 +22,7 @@ import (
 
 // NewAdaptiveConfiguratorConfig creates a new AdaptiveConfiguratorConfig object and returns its pointer.
 func NewAdaptiveConfiguratorConfig(distributionMinWeight float64, distributionMaxWeight float64,
-	sigmoidS0 float64, sigmoidK float64) *AdaptiveConfiguratorConfig {
+	conservativeMaxWeight float64, sigmoidS0 float64, sigmoidK float64) *AdaptiveConfiguratorConfig {
 	// TODO: validate config invariants:
 	// - 0 <= distributionMinWeight < distributionMaxWeight <= 1
 	// - 0 < sigmoidS0 && sigmoidS0 < 1
@@ -30,6 +30,7 @@ func NewAdaptiveConfiguratorConfig(distributionMinWeight float64, distributionMa
 	return &AdaptiveConfiguratorConfig{
 		distributionMinWeight: distributionMinWeight,
 		distributionMaxWeight: distributionMaxWeight,
+		conservativeMaxWeight: conservativeMaxWeight,
 		sigmoidS0:             sigmoidS0,
 		sigmoidK:              sigmoidK,
 	}
@@ -39,15 +40,17 @@ func NewAdaptiveConfiguratorConfig(distributionMinWeight float64, distributionMa
 type AdaptiveConfiguratorConfig struct {
 	distributionMinWeight float64
 	distributionMaxWeight float64
+	conservativeMaxWeight float64
 	sigmoidS0             float64 // s0 is midpoint, the signal r where sigmoid(r) = 0.5
 	sigmoidK              float64 // represents the slope/steepness of the sigmoid function. higher k is more aggressive.
 }
 
 func (c *AdaptiveConfiguratorConfig) String() string {
 	return fmt.Sprintf(
-		"{distributionMinWeight: %f, distributionMaxWeight: %f, sigmoidS0: %f, sigmoidK: %f}",
+		"{distributionMinWeight: %f, distributionMaxWeight: %f, conservativeMaxWeight: %f, sigmoidS0: %f, sigmoidK: %f}",
 		c.distributionMinWeight,
 		c.distributionMaxWeight,
+		c.conservativeMaxWeight,
 		c.sigmoidS0,
 		c.sigmoidK,
 	)

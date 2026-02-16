@@ -25,19 +25,15 @@ import (
 	"gonum.org/v1/gonum/stat"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/common/util/logging"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/datastore"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/plugin"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/metrics"
 )
 
 const (
-	ImbalanceDetectorType                = "imbalance-detector"
-	signalSmoothingRatio                 = 0.1 //  0.1 weight for previous signal and 0.9 to the new one, for smoothing the signal
-	minTotalRequests                     = 5   // avoid false positives from extremely low traffic, at least 5 requests to trigger ratio calculation
-	kvUtilNormalizedCVMetricKey          = "kv-utilization"
-	effectiveKvUtilNormalizedCVMetricKey = "effective-kv-utilization"
-	assignedRequestNormalizedCVMetricKey = "assigned-requests"
-	imbalanceFormulaKVFactor             = 0.8
+	ImbalanceDetectorType    = "imbalance-detector"
+	imbalanceFormulaKVFactor = 0.8
 )
 
 // compile-time type assertion
@@ -105,7 +101,7 @@ func (d *ImbalanceDetector) SignalRatio() float64 {
 func (d *ImbalanceDetector) refreshSignal(ctx context.Context) float64 {
 	endpoints := d.ds.PodList(datastore.AllPodsPredicate)
 	if len(endpoints) <= 1 { // if zero or one endpoints in the pool, the pool is balanced
-		log.FromContext(ctx).Info("num of endpoints lower than minimum", "count", len(endpoints))
+		log.FromContext(ctx).V(logutil.VERBOSE).Info("num of endpoints lower than minimum", "count", len(endpoints))
 		return 0
 	}
 
@@ -122,14 +118,10 @@ func (d *ImbalanceDetector) refreshSignal(ctx context.Context) float64 {
 		totalRequests += requestsPerEndpoint[i]
 	}
 
-	log.FromContext(ctx).Info("kv util", "endpoints", kvUtilizationPerEndpoint)
-	log.FromContext(ctx).Info("assigned requests", "endpoints", requestsPerEndpoint)
-	log.FromContext(ctx).Info("total requests", "endpoints", totalRequests)
-
 	// gate with minimal number of requests to avoid noise and prevent false imbalance signal when only few requests exist.
 	// useful during cold start or getting out of idle state.
 	if totalRequests < minTotalRequests {
-		log.FromContext(ctx).Info("total requests lower than minimum", "count", totalRequests)
+		log.FromContext(ctx).V(logutil.VERBOSE).Info("total requests lower than minimum", "count", totalRequests)
 		return 0 // considered balanced
 	}
 

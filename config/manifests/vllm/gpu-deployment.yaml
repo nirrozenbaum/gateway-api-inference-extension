@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vllm-llama3-8b-instruct
+  namespace: nrozenba
 spec:
   replicas: 8
   selector:
@@ -12,6 +13,15 @@ spec:
       labels:
         app: vllm-llama3-8b-instruct
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - worker-gpu3
       containers:
         - name: vllm
           image: "vllm/vllm-openai:v0.13.0"
@@ -224,6 +234,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: vllm-llama3-8b-instruct-adapters
+  namespace: nrozenba
 data:
   configmap.yaml: |
       vLLMLoRAConfig:

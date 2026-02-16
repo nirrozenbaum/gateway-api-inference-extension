@@ -30,7 +30,8 @@ import (
 )
 
 // NewAdaptiveConfigurator creates a new AdaptiveConfigurator object and returns its pointer.
-func NewAdaptiveConfigurator(imbalanceDetector *asyncdetector.ImbalanceDetector, interval time.Duration,
+func NewAdaptiveConfigurator(imbalanceDetector *asyncdetector.ImbalanceDetector,
+	pressureDetector *asyncdetector.PressureDetector, interval time.Duration,
 	schedulerConfig *SchedulerConfig, config *AdaptiveConfiguratorConfig) *AdaptiveConfigurator {
 	profilesData := make(map[string]*ProfileData)
 	for name, profile := range schedulerConfig.profiles {
@@ -39,11 +40,13 @@ func NewAdaptiveConfigurator(imbalanceDetector *asyncdetector.ImbalanceDetector,
 
 	adaptiveConfigurator := &AdaptiveConfigurator{
 		imbalanceDetector:     imbalanceDetector,
+		pressureDetector:      pressureDetector,
 		interval:              interval,
 		profiles:              schedulerConfig.profiles,
 		profilesData:          profilesData,
 		distributionMinWeight: config.distributionMinWeight,
 		distributionMaxWeight: config.distributionMaxWeight,
+		conservativeMaxWeight: config.conservativeMaxWeight,
 		sigmoidS0:             config.sigmoidS0,
 		sigmoidK:              config.sigmoidK,
 	}
@@ -55,11 +58,13 @@ func NewAdaptiveConfigurator(imbalanceDetector *asyncdetector.ImbalanceDetector,
 
 type AdaptiveConfigurator struct {
 	imbalanceDetector     *asyncdetector.ImbalanceDetector
+	pressureDetector      *asyncdetector.PressureDetector
 	interval              time.Duration
 	profiles              map[string]*framework.SchedulerProfile // keep the profiles for locking
 	profilesData          map[string]*ProfileData
 	distributionMinWeight float64
 	distributionMaxWeight float64
+	conservativeMaxWeight float64
 	sigmoidS0             float64
 	sigmoidK              float64
 }
@@ -122,8 +127,10 @@ func (c *AdaptiveConfigurator) calculateDesiredWeights() (float64, float64) {
 	imbalanceRatio := c.imbalanceDetector.SignalRatio()
 	sigmoidValue := sigmoid(imbalanceRatio, c.sigmoidS0, c.sigmoidK)
 
+	pressureRatio := c.pressureDetector.SignalRatio()
 	// weight(D) = wDmin + (sigmoid(ratio) * (wDmax - wDmin))
-	distributionWeight := c.distributionMinWeight + sigmoidValue*(c.distributionMaxWeight-c.distributionMinWeight)
+	dynamicMaxWeight := c.distributionMaxWeight - pressureRatio*(c.distributionMaxWeight-c.conservativeMaxWeight)
+	distributionWeight := c.distributionMinWeight + sigmoidValue*(dynamicMaxWeight-c.distributionMinWeight)
 	return distributionWeight, 1 - distributionWeight // weight(D)+weight(A) = 1
 }
 

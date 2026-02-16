@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vllm-llama3-8b-instruct
+  namespace: nrozenba
 spec:
   replicas: 3
   selector:
