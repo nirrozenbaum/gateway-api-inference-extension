@@ -396,6 +396,16 @@ var (
 		},
 		[]string{},
 	)
+
+	// categoryWeightBudget represents the weight budget allocated to scorers category per profile.
+	categoryWeightBudget = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: adaptiveConfigurator,
+			Name:      "category_weight_budget",
+			Help:      metricsutil.HelpMsgWithStability("The weight budget per scorer category, per profile", compbasemetrics.ALPHA),
+		},
+		[]string{"profile", "category"},
+	)
 )
 
 // --- Info Metrics ---
@@ -489,6 +499,7 @@ func Register(customCollectors ...prometheus.Collector) {
 		metrics.Registry.MustRegister(PluginProcessingLatencies)
 		metrics.Registry.MustRegister(imbalanceNormalizedCV)
 		metrics.Registry.MustRegister(imbalanceSignal)
+		metrics.Registry.MustRegister(categoryWeightBudget)
 		metrics.Registry.MustRegister(InferenceExtensionInfo)
 		metrics.Registry.MustRegister(PrefixCacheSize)
 		metrics.Registry.MustRegister(PrefixCacheHitRatio)
@@ -538,6 +549,7 @@ func Reset() {
 	PluginProcessingLatencies.Reset()
 	imbalanceNormalizedCV.Reset()
 	imbalanceSignal.Reset()
+	categoryWeightBudget.Reset()
 	InferenceExtensionInfo.Reset()
 	PrefixCacheSize.Reset()
 	PrefixCacheHitRatio.Reset()
@@ -797,6 +809,11 @@ func RecordImbalanceNormalizedCV(metricName string, value float64) {
 // RecordImbalanceSignal records the imbalance signal, taking into consideration the various metrics imbalance.
 func RecordImbalanceSignal(value float64) {
 	imbalanceSignal.WithLabelValues().Set(value)
+}
+
+// RecordImbalanceSignal records the imbalance signal, taking into consideration the various metrics imbalance.
+func RecordScorerCategoryWeightBudget(profile string, category string, value float64) {
+	categoryWeightBudget.WithLabelValues(profile, category).Set(value)
 }
 
 // RecordPrefixCacheSize records the size of the prefix indexer in megabytes.

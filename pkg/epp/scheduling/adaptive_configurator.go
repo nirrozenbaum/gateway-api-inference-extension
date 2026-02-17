@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/asyncdetector"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/plugin"
 	framework "sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/scheduling"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/metrics"
 )
 
 // NewAdaptiveConfigurator creates a new AdaptiveConfigurator object and returns its pointer.
@@ -119,6 +120,8 @@ func (c *AdaptiveConfigurator) adaptWeights(distributionWeight float64, affinity
 		}
 		// UpdateScorersWeights is internally synchronized by SchedulerProfile
 		profile.UpdateScorersWeights(updatedWeightsMap)
+		metrics.RecordScorerCategoryWeightBudget(name, string(framework.Distribution), distributionWeight)
+		metrics.RecordScorerCategoryWeightBudget(name, string(framework.Affinity), affinityWeight)
 	}
 }
 
