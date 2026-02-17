@@ -121,6 +121,7 @@ func (d *ImbalanceDetector) refreshSignal(ctx context.Context) float64 {
 	// useful during cold start or getting out of idle state.
 	if totalRequests < minTotalRequests {
 		log.FromContext(ctx).V(logutil.VERBOSE).Info("total requests lower than minimum", "count", totalRequests)
+		metrics.RecordAsyncDetectorSignal(d.typedName.Type, d.typedName.Name, 0)
 		return 0 // considered balanced
 	}
 
@@ -134,8 +135,6 @@ func (d *ImbalanceDetector) refreshSignal(ctx context.Context) float64 {
 	normalizedCvKvUtilization := normalizedCoefficientOfVariation(kvUtilizationPerEndpoint)
 	normalizedCvAssignedRequests := normalizedCoefficientOfVariation(normalizedRequestsPerEndpoint)
 
-	// final formula properties:
-	// Requests dominate (irreversible load), KV still matters but only when meaningful, no masking of request imbalance by KV
 	signal := math.Min(normalizedCvAssignedRequests, normalizedCvKvUtilization)
 
 	metrics.RecordImbalanceNormalizedCV(kvUtilNormalizedCVMetricKey, normalizedCvKvUtilization)

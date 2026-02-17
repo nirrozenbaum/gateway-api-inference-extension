@@ -100,6 +100,13 @@ func (d *PressureDetector) refreshSignal(ctx context.Context) float64 {
 
 	totalQueuedRequests := 0.0
 	totalRequests := 0.0
+	signal := 0.0
+
+	defer func() {
+		metrics.RecordQueuedRequests(totalQueuedRequests)
+		metrics.RecordRunningRequests(totalRequests)
+		metrics.RecordAsyncDetectorSignal(d.typedName.Type, d.typedName.Name, signal)
+	}()
 
 	for _, endpoint := range endpoints {
 		metrics := endpoint.GetMetrics()
@@ -111,14 +118,10 @@ func (d *PressureDetector) refreshSignal(ctx context.Context) float64 {
 	// useful during cold start or getting out of idle state.
 	if totalRequests < minTotalRequests {
 		log.FromContext(ctx).V(logutil.VERBOSE).Info("total requests lower than minimum", "count", totalRequests)
-		return 0 // considered no pressure
+		return signal // signal is 0 at this point, we consider idle state as no pressure
 	}
 
-	signal := totalQueuedRequests / totalRequests
-
-	metrics.RecordAsyncDetectorSignal(d.typedName.Type, d.typedName.Name, signal)
-	metrics.RecordQueuedRequests(totalQueuedRequests)
-	metrics.RecordRunningRequests(totalRequests)
+	signal = totalQueuedRequests / totalRequests
 
 	return signal
 }
