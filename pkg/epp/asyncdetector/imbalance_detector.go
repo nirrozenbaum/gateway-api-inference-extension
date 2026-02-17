@@ -32,8 +32,7 @@ import (
 )
 
 const (
-	ImbalanceDetectorType    = "imbalance-detector"
-	imbalanceFormulaKVFactor = 0.8
+	ImbalanceDetectorType = "imbalance-detector"
 )
 
 // compile-time type assertion
@@ -137,12 +136,11 @@ func (d *ImbalanceDetector) refreshSignal(ctx context.Context) float64 {
 
 	// final formula properties:
 	// Requests dominate (irreversible load), KV still matters but only when meaningful, no masking of request imbalance by KV
-	signal := math.Min(normalizedCvAssignedRequests, imbalanceFormulaKVFactor*normalizedCvKvUtilization)
+	signal := math.Min(normalizedCvAssignedRequests, normalizedCvKvUtilization)
 
 	metrics.RecordImbalanceNormalizedCV(kvUtilNormalizedCVMetricKey, normalizedCvKvUtilization)
-	metrics.RecordImbalanceNormalizedCV(effectiveKvUtilNormalizedCVMetricKey, imbalanceFormulaKVFactor*normalizedCvKvUtilization)
 	metrics.RecordImbalanceNormalizedCV(assignedRequestNormalizedCVMetricKey, normalizedCvAssignedRequests)
-	metrics.RecordImbalanceSignal(signal)
+	metrics.RecordAsyncDetectorSignal(d.typedName.Type, d.typedName.Name, signal)
 
 	return signal
 }

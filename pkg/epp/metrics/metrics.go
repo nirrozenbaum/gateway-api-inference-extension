@@ -387,14 +387,14 @@ var (
 		},
 		[]string{"metric"},
 	)
-	// imbalanceSignal represents the final imbalance signal after integrating multiple imbalance metrics to a single value.
-	imbalanceSignal = prometheus.NewGaugeVec(
+	// asyncDetectoreSignal represents the async detector signal.
+	asyncDetectoreSignal = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Subsystem: adaptiveConfigurator,
-			Name:      "imbalace_signal",
-			Help:      metricsutil.HelpMsgWithStability("The imbalance final signal value", compbasemetrics.ALPHA),
+			Name:      "async_detector_signal",
+			Help:      metricsutil.HelpMsgWithStability("Async detector signal value", compbasemetrics.ALPHA),
 		},
-		[]string{},
+		[]string{"detector_type", "detector_name"},
 	)
 
 	// categoryWeightBudget represents the weight budget allocated to scorers category per profile.
@@ -405,6 +405,36 @@ var (
 			Help:      metricsutil.HelpMsgWithStability("The weight budget per scorer category, per profile", compbasemetrics.ALPHA),
 		},
 		[]string{"profile", "category"},
+	)
+
+	// scorerWeight represents the dynamic scorer weight.
+	scorerWeight = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: adaptiveConfigurator,
+			Name:      "scorer_weight",
+			Help:      metricsutil.HelpMsgWithStability("The dynamic scorer weight, per profile", compbasemetrics.ALPHA),
+		},
+		[]string{"profile", "scorer_type", "scorer_name"},
+	)
+
+	// totalQueuedRequests represents the total numbers of queued requests in the various endpoints of the pool.
+	totalQueuedRequests = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: adaptiveConfigurator,
+			Name:      "total_queued_requests",
+			Help:      metricsutil.HelpMsgWithStability("The total numbers of queued requests in the pool", compbasemetrics.ALPHA),
+		},
+		[]string{},
+	)
+
+	// totalRunningRequests represents the total numbers of running requests in the various endpoints of the pool.
+	totalRunningRequests = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: adaptiveConfigurator,
+			Name:      "total_running_requests",
+			Help:      metricsutil.HelpMsgWithStability("The total numbers of running requests in the pool", compbasemetrics.ALPHA),
+		},
+		[]string{},
 	)
 )
 
@@ -498,8 +528,11 @@ func Register(customCollectors ...prometheus.Collector) {
 		metrics.Registry.MustRegister(SchedulerAttemptsTotal)
 		metrics.Registry.MustRegister(PluginProcessingLatencies)
 		metrics.Registry.MustRegister(imbalanceNormalizedCV)
-		metrics.Registry.MustRegister(imbalanceSignal)
+		metrics.Registry.MustRegister(asyncDetectoreSignal)
 		metrics.Registry.MustRegister(categoryWeightBudget)
+		metrics.Registry.MustRegister(scorerWeight)
+		metrics.Registry.MustRegister(totalQueuedRequests)
+		metrics.Registry.MustRegister(totalRunningRequests)
 		metrics.Registry.MustRegister(InferenceExtensionInfo)
 		metrics.Registry.MustRegister(PrefixCacheSize)
 		metrics.Registry.MustRegister(PrefixCacheHitRatio)
@@ -548,8 +581,11 @@ func Reset() {
 	SchedulerAttemptsTotal.Reset()
 	PluginProcessingLatencies.Reset()
 	imbalanceNormalizedCV.Reset()
-	imbalanceSignal.Reset()
+	asyncDetectoreSignal.Reset()
 	categoryWeightBudget.Reset()
+	scorerWeight.Reset()
+	totalQueuedRequests.Reset()
+	totalRunningRequests.Reset()
 	InferenceExtensionInfo.Reset()
 	PrefixCacheSize.Reset()
 	PrefixCacheHitRatio.Reset()
@@ -806,14 +842,29 @@ func RecordImbalanceNormalizedCV(metricName string, value float64) {
 	imbalanceNormalizedCV.WithLabelValues(metricName).Set(value)
 }
 
-// RecordImbalanceSignal records the imbalance signal, taking into consideration the various metrics imbalance.
-func RecordImbalanceSignal(value float64) {
-	imbalanceSignal.WithLabelValues().Set(value)
+// RecordAsyncDetectorSignal records the async detector signal.
+func RecordAsyncDetectorSignal(detectorType string, detectorName string, value float64) {
+	asyncDetectoreSignal.WithLabelValues(detectorType, detectorName).Set(value)
 }
 
-// RecordImbalanceSignal records the imbalance signal, taking into consideration the various metrics imbalance.
+// RecordScorerCategoryWeightBudget records the category weight budget per (profile, category)
 func RecordScorerCategoryWeightBudget(profile string, category string, value float64) {
 	categoryWeightBudget.WithLabelValues(profile, category).Set(value)
+}
+
+// RecordScorerWeight records the dynamic scorer weight per profile.
+func RecordScorerWeight(profile string, scorerType string, scorerName string, value float64) {
+	scorerWeight.WithLabelValues(profile, scorerType, scorerName).Set(value)
+}
+
+// RecordQueuedRequests records the number of total queued requests.
+func RecordQueuedRequests(value float64) {
+	totalQueuedRequests.WithLabelValues().Set(value)
+}
+
+// RecordRunningRequests records the number of total running requests.
+func RecordRunningRequests(value float64) {
+	totalRunningRequests.WithLabelValues().Set(value)
 }
 
 // RecordPrefixCacheSize records the size of the prefix indexer in megabytes.

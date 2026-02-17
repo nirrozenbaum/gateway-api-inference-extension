@@ -116,8 +116,9 @@ func (d *PressureDetector) refreshSignal(ctx context.Context) float64 {
 
 	signal := totalQueuedRequests / totalRequests
 
-	// TODO record pressure signal
-	// metrics.RecordImbalanceSignal(signal)
+	metrics.RecordAsyncDetectorSignal(d.typedName.Type, d.typedName.Name, signal)
+	metrics.RecordQueuedRequests(totalQueuedRequests)
+	metrics.RecordRunningRequests(totalRequests)
 
 	return signal
 }

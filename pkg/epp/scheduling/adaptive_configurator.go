@@ -120,6 +120,10 @@ func (c *AdaptiveConfigurator) adaptWeights(distributionWeight float64, affinity
 		}
 		// UpdateScorersWeights is internally synchronized by SchedulerProfile
 		profile.UpdateScorersWeights(updatedWeightsMap)
+		// metrics reporting
+		for scorerTypedName, newWeight := range updatedWeightsMap {
+			metrics.RecordScorerWeight(name, scorerTypedName.Type, scorerTypedName.Name, newWeight)
+		}
 		metrics.RecordScorerCategoryWeightBudget(name, string(framework.Distribution), distributionWeight)
 		metrics.RecordScorerCategoryWeightBudget(name, string(framework.Affinity), affinityWeight)
 	}
