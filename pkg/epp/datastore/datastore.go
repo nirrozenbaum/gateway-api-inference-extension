@@ -143,7 +143,6 @@ func (ds *datastore) Clear() {
 
 // /// Pool APIs ///
 func (ds *datastore) PoolSet(ctx context.Context, reader client.Reader, endpointPool *datalayer.EndpointPool) error {
-
 	if endpointPool == nil {
 		ds.Clear()
 		return nil
