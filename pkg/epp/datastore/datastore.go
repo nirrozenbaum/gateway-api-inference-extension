@@ -143,6 +143,7 @@ func (ds *datastore) Clear() {
 
 // /// Pool APIs ///
 func (ds *datastore) PoolSet(ctx context.Context, reader client.Reader, endpointPool *datalayer.EndpointPool) error {
+
 	if endpointPool == nil {
 		ds.Clear()
 		return nil
@@ -280,10 +281,6 @@ func (ds *datastore) PodUpdateOrAddIfNotExist(pod *corev1.Pod) bool {
 	for key, value := range pod.GetLabels() {
 		labels[key] = value
 	}
-
-	// the last part is using ports from pool crd, this should be synced with a lock
-	ds.mu.Lock()
-	defer ds.mu.Unlock()
 
 	modelServerMetricsPort := 0
 	if len(ds.pool.TargetPorts) == 1 {
