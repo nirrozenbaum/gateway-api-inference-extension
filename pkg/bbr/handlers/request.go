@@ -32,11 +32,6 @@ import (
 	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/common/observability/logging"
 )
 
-const (
-	modelHeader     = "X-Gateway-Model-Name"
-	baseModelHeader = "X-Gateway-Base-Model-Name"
-)
-
 // HandleRequestBody parses the raw body bytes into reqCtx.Request.Body and processes the request.
 func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, requestBodyBytes []byte) ([]*eppb.ProcessingResponse, error) {
 	logger := log.FromContext(ctx)
@@ -67,8 +62,8 @@ func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, 
 	}
 
 	// TODO temp until this is implemented as plugin
-	baseModel := s.ds.GetBaseModel(reqCtx.Request.Headers[modelHeader])
-	reqCtx.Request.SetHeader(baseModelHeader, baseModel)
+	baseModel := s.ds.GetBaseModel(reqCtx.Request.Headers[ModelHeader])
+	reqCtx.Request.SetHeader(BaseModelHeader, baseModel)
 	logger.Info("Base model from datastore", "baseModel", baseModel)
 
 	metrics.RecordSuccessCounter()

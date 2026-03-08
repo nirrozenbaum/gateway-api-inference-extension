@@ -55,13 +55,13 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      modelHeader,
+												Key:      ModelHeader,
 												RawValue: []byte("foo"),
 											},
 										},
 										{
 											Header: &basepb.HeaderValue{
-												Key:      baseModelHeader,
+												Key:      BaseModelHeader,
 												RawValue: []byte(""),
 											},
 										},
@@ -89,13 +89,13 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      modelHeader,
+												Key:      ModelHeader,
 												RawValue: []byte("foo"),
 											},
 										},
 										{
 											Header: &basepb.HeaderValue{
-												Key:      baseModelHeader,
+												Key:      BaseModelHeader,
 												RawValue: []byte(""),
 											},
 										},
@@ -128,7 +128,7 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			modelToHeaderPlugin, _ := plugins.NewBodyFieldToHeaderPlugin("model", modelHeader)
+			modelToHeaderPlugin, _ := plugins.NewBodyFieldToHeaderPlugin(ModelField, ModelHeader)
 			srv := NewServer(tc.streaming, &fakeDatastore{}, []framework.RequestProcessor{modelToHeaderPlugin}, []framework.ResponseProcessor{})
 			reqCtx := &RequestContext{
 				Request: framework.NewInferenceRequest(),

@@ -34,6 +34,10 @@ import (
 )
 
 const (
+	ModelField      = "model"
+	ModelHeader     = "X-Gateway-Model-Name"
+	BaseModelHeader = "X-Gateway-Base-Model-Name"
+
 	requestPluginExtensionPoint  = "request"
 	responsePluginExtensionPoint = "response"
 )

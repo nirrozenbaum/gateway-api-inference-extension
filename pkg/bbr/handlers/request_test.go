@@ -250,13 +250,13 @@ func TestHandleRequestBody(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      modelHeader,
+												Key:      ModelHeader,
 												RawValue: []byte("1"),
 											},
 										},
 										{
 											Header: &basepb.HeaderValue{
-												Key:      baseModelHeader,
+												Key:      BaseModelHeader,
 												RawValue: []byte(""),
 											},
 										},
@@ -285,13 +285,13 @@ func TestHandleRequestBody(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      modelHeader,
+												Key:      ModelHeader,
 												RawValue: []byte("foo"),
 											},
 										},
 										{
 											Header: &basepb.HeaderValue{
-												Key:      baseModelHeader,
+												Key:      BaseModelHeader,
 												RawValue: []byte(""),
 											},
 										},
@@ -320,13 +320,13 @@ func TestHandleRequestBody(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      modelHeader,
+												Key:      ModelHeader,
 												RawValue: []byte("foo"),
 											},
 										},
 										{
 											Header: &basepb.HeaderValue{
-												Key:      baseModelHeader,
+												Key:      BaseModelHeader,
 												RawValue: []byte(""),
 											},
 										},
@@ -383,13 +383,13 @@ func TestHandleRequestBody(t *testing.T) {
 										SetHeaders: []*basepb.HeaderValueOption{
 											{
 												Header: &basepb.HeaderValue{
-													Key:      modelHeader,
+													Key:      ModelHeader,
 													RawValue: []byte("foo"),
 												},
 											},
 											{
 												Header: &basepb.HeaderValue{
-													Key:      baseModelHeader,
+													Key:      BaseModelHeader,
 													RawValue: []byte(""),
 												},
 											},
@@ -438,7 +438,7 @@ func TestHandleRequestBody(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			modelToHeaderPlugin, _ := plugins.NewBodyFieldToHeaderPlugin("model", modelHeader)
+			modelToHeaderPlugin, _ := plugins.NewBodyFieldToHeaderPlugin(ModelField, ModelHeader)
 			server := NewServer(test.streaming, &fakeDatastore{}, []framework.RequestProcessor{modelToHeaderPlugin}, []framework.ResponseProcessor{})
 			reqCtx := &RequestContext{
 				Request: framework.NewInferenceRequest(),
@@ -484,7 +484,7 @@ func TestHandleRequestBodyWithPluginMetrics(t *testing.T) {
 	metrics.Register()
 	ctx := logutil.NewTestLoggerIntoContext(context.Background())
 
-	plugin, _ := plugins.NewBodyFieldToHeaderPlugin("model", modelHeader)
+	plugin, _ := plugins.NewBodyFieldToHeaderPlugin(ModelField, ModelHeader)
 	server := NewServer(false, &fakeDatastore{}, []framework.RequestProcessor{plugin}, []framework.ResponseProcessor{})
 	reqCtx := &RequestContext{
 		Request: framework.NewInferenceRequest(),
