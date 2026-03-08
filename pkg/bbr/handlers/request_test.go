@@ -19,7 +19,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"sort"
 	"strings"
 	"testing"
 
@@ -33,36 +32,9 @@ import (
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/framework"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/metrics"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/plugins"
+	envoytest "sigs.k8s.io/gateway-api-inference-extension/pkg/common/envoy/test"
 	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/common/observability/logging"
 )
-
-// sortSetHeadersInResponses sorts HeaderMutation.SetHeaders by key in each response (for deterministic comparison; map iteration order is undefined).
-func sortSetHeadersInResponses(responses []*extProcPb.ProcessingResponse) {
-	for _, r := range responses {
-		if r == nil || r.Response == nil {
-			continue
-		}
-		var common *extProcPb.CommonResponse
-		switch rr := r.Response.(type) {
-		case *extProcPb.ProcessingResponse_RequestHeaders:
-			if rr.RequestHeaders != nil && rr.RequestHeaders.Response != nil {
-				common = rr.RequestHeaders.Response
-			}
-		case *extProcPb.ProcessingResponse_RequestBody:
-			if rr.RequestBody != nil && rr.RequestBody.Response != nil {
-				common = rr.RequestBody.Response
-			}
-		default:
-			continue
-		}
-		if common != nil && common.HeaderMutation != nil && len(common.HeaderMutation.SetHeaders) > 1 {
-			sort.Slice(common.HeaderMutation.SetHeaders, func(i, j int) bool {
-				return common.HeaderMutation.SetHeaders[i].GetHeader().GetKey() <
-					common.HeaderMutation.SetHeaders[j].GetHeader().GetKey()
-			})
-		}
-	}
-}
 
 func TestHandleRequestHeaders(t *testing.T) {
 	tests := []struct {
@@ -453,8 +425,8 @@ func TestHandleRequestBody(t *testing.T) {
 			}
 
 			// sort headers in responses for deterministic tests
-			sortSetHeadersInResponses(test.want)
-			sortSetHeadersInResponses(resp)
+			envoytest.SortSetHeadersInResponses(test.want)
+			envoytest.SortSetHeadersInResponses(resp)
 			if diff := cmp.Diff(test.want, resp, protocmp.Transform()); diff != "" {
 				t.Errorf("HandleRequestBody returned unexpected response, diff(-want, +got): %v", diff)
 			}

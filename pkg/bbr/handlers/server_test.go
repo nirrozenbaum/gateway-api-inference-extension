@@ -27,6 +27,7 @@ import (
 
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/framework"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/plugins"
+	envoytest "sigs.k8s.io/gateway-api-inference-extension/pkg/common/envoy/test"
 	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/common/observability/logging"
 )
 
@@ -139,8 +140,8 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 			}
 
 			// sort headers in responses for deterministic tests
-			sortSetHeadersInResponses(tc.want)
-			sortSetHeadersInResponses(got)
+			envoytest.SortSetHeadersInResponses(tc.want)
+			envoytest.SortSetHeadersInResponses(got)
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("HandleRequestBody returned unexpected response, diff(-want, +got): %v", diff)
 			}
