@@ -52,6 +52,21 @@ func NewInferenceResponse() *InferenceResponse {
 }
 
 type InferenceResponse struct {
+	// original request
 	Headers map[string]string
 	Body    map[string]any
+
+	// mutations
+	mutatedHeaders map[string]string
+}
+
+func (r *InferenceResponse) SetHeader(key string, value string) {
+	if old, ok := r.Headers[key]; !ok || old != value { // if we add or replace a header
+		r.Headers[key] = value
+		r.mutatedHeaders[key] = value
+	}
+}
+
+func (r *InferenceResponse) MutatedHeaders() map[string]string {
+	return r.mutatedHeaders
 }

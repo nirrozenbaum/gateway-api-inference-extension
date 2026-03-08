@@ -22,7 +22,11 @@ import (
 	"errors"
 	"fmt"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
+
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/framework"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/metrics"
+	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/common/observability/logging"
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/epp/framework/interface/plugin"
 )
 
@@ -103,14 +107,21 @@ func (p *BodyFieldToHeaderPlugin) ProcessRequest(ctx context.Context, request *f
 		return nil // this shouldn't happen
 	}
 
-	// extract field value from body
-	fieldValue, exists := request.Body[p.fieldName]
+	// extract raw field value from body
+	rawFieldValue, exists := request.Body[p.fieldName]
 	if !exists {
-		// field doesn't exist in body, return headers map unchanged
-		return nil
+		metrics.RecordBodyFieldNotFound(p.fieldName)
+		return fmt.Errorf("field '%s' not found in request body", p.fieldName)
 	}
 
-	request.SetHeader(p.headerName, fmt.Sprintf("%v", fieldValue))
+	fieldStr := fmt.Sprintf("%v", rawFieldValue) // convert any type to string
+	if fieldStr == "" {
+		metrics.RecordBodyFieldEmpty(p.fieldName)
+		return fmt.Errorf("field '%s' is empty and couldn't be processed", p.fieldName)
+	}
+
+	log.FromContext(ctx).V(logutil.VERBOSE).Info("parsed field from body", "field", p.fieldName, "value", fieldStr)
+	request.SetHeader(p.headerName, fmt.Sprintf("%v", fieldStr))
 
 	return nil
 }

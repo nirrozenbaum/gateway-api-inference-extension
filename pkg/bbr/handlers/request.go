@@ -19,7 +19,6 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -47,23 +46,8 @@ func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, 
 		return nil, err
 	}
 
-	targetModelAny, ok := reqCtx.Request.Body["model"]
-	if !ok {
-		metrics.RecordModelNotParsedCounter()
-		targetModelAny = ""
-	}
-
-	targetModel, ok := targetModelAny.(string)
-	if !ok {
-		metrics.RecordModelNotParsedCounter()
-		return nil, errors.New("model is not a string")
-	}
-
-	logger.Info("Parsed model name", "model", targetModel)
-
-	if targetModel == "" {
-		metrics.RecordModelNotInBodyCounter()
-		logger.V(logutil.DEFAULT).Info("Request body does not contain model parameter")
+	if err := s.runRequestPlugins(ctx, reqCtx.Request); err != nil {
+		logger.V(logutil.DEFAULT).Error(err, "failed to execute request plugins")
 		if s.streaming {
 			ret = append(ret, &eppb.ProcessingResponse{
 				Response: &eppb.ProcessingResponse_RequestHeaders{
@@ -82,16 +66,12 @@ func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, 
 		return ret, nil
 	}
 
-	if err := s.runRequestPlugins(ctx, reqCtx.Request); err != nil {
-		return nil, fmt.Errorf("failed to execute request plugins - %w", err)
-	}
+	// TODO temp until this is implemented as plugin
+	baseModel := s.ds.GetBaseModel(reqCtx.Request.Headers[modelHeader])
+	reqCtx.Request.SetHeader(baseModelHeader, baseModel)
+	logger.Info("Base model from datastore", "baseModel", baseModel)
 
 	metrics.RecordSuccessCounter()
-	baseModel := s.ds.GetBaseModel(targetModel)
-	// TODO temp until this is implemented as plugin
-	reqCtx.Request.SetHeader(baseModelHeader, baseModel)
-
-	logger.Info("Base model from datastore", "baseModel", baseModel)
 
 	if s.streaming {
 		ret = append(ret, &eppb.ProcessingResponse{

@@ -19,13 +19,13 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
 	"testing"
 
 	basepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
 	metricsutils "k8s.io/component-base/metrics/testutil"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -35,6 +35,34 @@ import (
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/plugins"
 	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/common/observability/logging"
 )
+
+// sortSetHeadersInResponses sorts HeaderMutation.SetHeaders by key in each response (for deterministic comparison; map iteration order is undefined).
+func sortSetHeadersInResponses(responses []*extProcPb.ProcessingResponse) {
+	for _, r := range responses {
+		if r == nil || r.Response == nil {
+			continue
+		}
+		var common *extProcPb.CommonResponse
+		switch rr := r.Response.(type) {
+		case *extProcPb.ProcessingResponse_RequestHeaders:
+			if rr.RequestHeaders != nil && rr.RequestHeaders.Response != nil {
+				common = rr.RequestHeaders.Response
+			}
+		case *extProcPb.ProcessingResponse_RequestBody:
+			if rr.RequestBody != nil && rr.RequestBody.Response != nil {
+				common = rr.RequestBody.Response
+			}
+		default:
+			continue
+		}
+		if common != nil && common.HeaderMutation != nil && len(common.HeaderMutation.SetHeaders) > 1 {
+			sort.Slice(common.HeaderMutation.SetHeaders, func(i, j int) bool {
+				return common.HeaderMutation.SetHeaders[i].GetHeader().GetKey() <
+					common.HeaderMutation.SetHeaders[j].GetHeader().GetKey()
+			})
+		}
+	}
+}
 
 func TestHandleRequestHeaders(t *testing.T) {
 	tests := []struct {
@@ -192,12 +220,53 @@ func TestHandleRequestBody(t *testing.T) {
 			},
 		},
 		{
-			name: "model is not string",
+			name: "model in body but empty",
+			body: map[string]any{
+				"model":  "",
+				"prompt": "Tell me a joke",
+			},
+			want: []*extProcPb.ProcessingResponse{
+				{
+					Response: &extProcPb.ProcessingResponse_RequestBody{
+						RequestBody: &extProcPb.BodyResponse{},
+					},
+				},
+			},
+		},
+		{
+			name: "model is not string, success after it's being auto converted to string",
 			body: map[string]any{
 				"model":  1,
 				"prompt": "Tell me a joke",
 			},
-			wantErr: true,
+			want: []*extProcPb.ProcessingResponse{
+				{
+					Response: &extProcPb.ProcessingResponse_RequestBody{
+						RequestBody: &extProcPb.BodyResponse{
+							Response: &extProcPb.CommonResponse{
+								// Necessary so that the new headers are used in the routing decision.
+								ClearRouteCache: true,
+								HeaderMutation: &extProcPb.HeaderMutation{
+									SetHeaders: []*basepb.HeaderValueOption{
+										{
+											Header: &basepb.HeaderValue{
+												Key:      modelHeader,
+												RawValue: []byte("1"),
+											},
+										},
+										{
+											Header: &basepb.HeaderValue{
+												Key:      baseModelHeader,
+												RawValue: []byte(""),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 		{
 			name: "success",
@@ -383,25 +452,30 @@ func TestHandleRequestBody(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(test.want, resp, protocmp.Transform(), cmpopts.SortSlices(func(a, b *extProcPb.ProcessingResponse) bool { return a.String() < b.String() })); diff != "" {
+			// sort headers in responses for deterministic tests
+			sortSetHeadersInResponses(test.want)
+			sortSetHeadersInResponses(resp)
+			if diff := cmp.Diff(test.want, resp, protocmp.Transform()); diff != "" {
 				t.Errorf("HandleRequestBody returned unexpected response, diff(-want, +got): %v", diff)
 			}
 		})
 	}
 
+	// Assert BBR metrics: 2 model not in body, 1 model empty string, 4 successful model-from-body cases.
 	wantMetrics := `
-	# HELP bbr_model_not_in_body_total [ALPHA] Count of times the model was not present in the request body.
-	# TYPE bbr_model_not_in_body_total counter
-	bbr_model_not_in_body_total{} 1
-	# HELP bbr_model_not_parsed_total [ALPHA] Count of times the model was in the request body but we could not parse it.
-	# TYPE bbr_model_not_parsed_total counter
-	bbr_model_not_parsed_total{} 1
-	# HELP bbr_success_total [ALPHA] Count of successes pulling model name from body and injecting it in the request headers.
+	# HELP bbr_body_field_empty_total [ALPHA] Count of times a field was found in a request body but was empty.
+	# TYPE bbr_body_field_empty_total counter
+	bbr_body_field_empty_total{field="model"} 1
+	# HELP bbr_body_field_not_found_total [ALPHA] Count of times a field wasn't found in a request body.
+	# TYPE bbr_body_field_not_found_total counter
+	bbr_body_field_not_found_total{field="model"} 2
+	# HELP bbr_success_total [ALPHA] Count of time the request was processed successfully.
 	# TYPE bbr_success_total counter
-	bbr_success_total{} 1
+	bbr_success_total{} 4
 	`
 
-	if err := metricsutils.GatherAndCompare(crmetrics.Registry, strings.NewReader(wantMetrics), "inference_objective_request_total"); err != nil {
+	if err := metricsutils.GatherAndCompare(crmetrics.Registry, strings.NewReader(wantMetrics),
+		"bbr_body_field_empty_total", "bbr_body_field_not_found_total", "bbr_success_total"); err != nil {
 		t.Error(err)
 	}
 }

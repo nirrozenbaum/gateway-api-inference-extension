@@ -23,7 +23,6 @@ import (
 	basepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/framework"
@@ -139,7 +138,10 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 				t.Fatalf("HandleRequestBody(): %v", err)
 			}
 
-			if diff := cmp.Diff(tc.want, got, protocmp.Transform(), cmpopts.SortSlices(func(a, b *extProcPb.ProcessingResponse) bool { return a.String() < b.String() })); diff != "" {
+			// sort headers in responses for deterministic tests
+			sortSetHeadersInResponses(tc.want)
+			sortSetHeadersInResponses(got)
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("HandleRequestBody returned unexpected response, diff(-want, +got): %v", diff)
 			}
 		})
