@@ -16,15 +16,15 @@ limitations under the License.
 
 package framework
 
-func NewInferenceRequest() *InferenceRequest {
-	return &InferenceRequest{
+func newInferenceMessage() InferenceMessage {
+	return InferenceMessage{
 		Headers:        map[string]string{},
 		Body:           make(map[string]any),
 		mutatedHeaders: make(map[string]string),
 	}
 }
 
-type InferenceRequest struct {
+type InferenceMessage struct {
 	// original request
 	Headers map[string]string
 	Body    map[string]any
@@ -33,40 +33,35 @@ type InferenceRequest struct {
 	mutatedHeaders map[string]string
 }
 
-func (r *InferenceRequest) SetHeader(key string, value string) {
+func (r *InferenceMessage) SetHeader(key string, value string) {
 	if old, ok := r.Headers[key]; !ok || old != value { // if we add or replace a header
 		r.Headers[key] = value
 		r.mutatedHeaders[key] = value
 	}
 }
 
-func (r *InferenceRequest) MutatedHeaders() map[string]string {
+func (r *InferenceMessage) MutatedHeaders() map[string]string {
 	return r.mutatedHeaders
 }
 
-func NewInferenceResponse() *InferenceResponse {
-	return &InferenceResponse{
-		Headers: make(map[string]string),
-		Body:    make(map[string]any),
-	}
+type InferenceRequest struct {
+	InferenceMessage
 }
 
 type InferenceResponse struct {
-	// original request
-	Headers map[string]string
-	Body    map[string]any
-
-	// mutations
-	mutatedHeaders map[string]string
+	InferenceMessage
 }
 
-func (r *InferenceResponse) SetHeader(key string, value string) {
-	if old, ok := r.Headers[key]; !ok || old != value { // if we add or replace a header
-		r.Headers[key] = value
-		r.mutatedHeaders[key] = value
+// NewInferenceRequest returns a new request with initialized Headers, Body, and mutatedHeaders.
+func NewInferenceRequest() *InferenceRequest {
+	return &InferenceRequest{
+		InferenceMessage: newInferenceMessage(),
 	}
 }
 
-func (r *InferenceResponse) MutatedHeaders() map[string]string {
-	return r.mutatedHeaders
+// NewInferenceResponse returns a new response with initialized Headers, Body, and mutatedHeaders.
+func NewInferenceResponse() *InferenceResponse {
+	return &InferenceResponse{
+		InferenceMessage: newInferenceMessage(),
+	}
 }
