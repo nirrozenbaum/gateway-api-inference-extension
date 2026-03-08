@@ -16,11 +16,14 @@ limitations under the License.
 
 package framework
 
+import "k8s.io/apimachinery/pkg/util/sets"
+
 func newInferenceMessage() InferenceMessage {
 	return InferenceMessage{
 		Headers:        map[string]string{},
 		Body:           make(map[string]any),
 		mutatedHeaders: make(map[string]string),
+		removedHeaders: sets.New[string](),
 	}
 }
 
@@ -31,17 +34,31 @@ type InferenceMessage struct {
 
 	// mutations
 	mutatedHeaders map[string]string
+	removedHeaders sets.Set[string]
 }
 
 func (r *InferenceMessage) SetHeader(key string, value string) {
 	if old, ok := r.Headers[key]; !ok || old != value { // if we add or replace a header
 		r.Headers[key] = value
 		r.mutatedHeaders[key] = value
+		r.removedHeaders.Delete(key) // no longer removed if we set it again
+	}
+}
+
+func (r *InferenceMessage) RemoveHeader(key string) {
+	if _, ok := r.Headers[key]; ok {
+		delete(r.Headers, key)
+		delete(r.mutatedHeaders, key) // avoid sending set and remove for same key
+		r.removedHeaders.Insert(key)
 	}
 }
 
 func (r *InferenceMessage) MutatedHeaders() map[string]string {
 	return r.mutatedHeaders
+}
+
+func (r *InferenceMessage) RemovedHeaders() []string {
+	return r.removedHeaders.UnsortedList()
 }
 
 type InferenceRequest struct {
