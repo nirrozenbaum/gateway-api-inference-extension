@@ -121,7 +121,7 @@ func (p *BodyFieldToHeaderPlugin) ProcessRequest(ctx context.Context, request *f
 	}
 
 	log.FromContext(ctx).V(logutil.VERBOSE).Info("parsed field from body", "field", p.fieldName, "value", fieldStr)
-	request.SetHeader(p.headerName, fmt.Sprintf("%v", fieldStr))
+	request.SetHeader(p.headerName, fieldStr)
 
 	return nil
 }
