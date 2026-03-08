@@ -16,7 +16,9 @@ limitations under the License.
 
 package framework
 
-import "k8s.io/apimachinery/pkg/util/sets"
+import (
+	"k8s.io/apimachinery/pkg/util/sets"
+)
 
 func newInferenceMessage() InferenceMessage {
 	return InferenceMessage{
