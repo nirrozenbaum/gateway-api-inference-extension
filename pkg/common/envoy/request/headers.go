@@ -46,7 +46,7 @@ func ExtractHeaderValue(req *extProcPb.ProcessingRequest_RequestHeaders, headerK
 	return ""
 }
 
-func GenerateHeadersMutation(headers map[string]string) *extProcPb.HeaderMutation {
+func GenerateHeadersMutation(headers map[string]string) []*corev3.HeaderValueOption {
 	headersMutation := []*corev3.HeaderValueOption{}
 	for key, value := range headers {
 		mutation := &corev3.HeaderValueOption{
@@ -58,7 +58,5 @@ func GenerateHeadersMutation(headers map[string]string) *extProcPb.HeaderMutatio
 		headersMutation = append(headersMutation, mutation)
 	}
 
-	return &extProcPb.HeaderMutation{
-		SetHeaders: headersMutation,
-	}
+	return headersMutation
 }

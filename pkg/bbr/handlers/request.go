@@ -74,7 +74,9 @@ func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, 
 				RequestHeaders: &eppb.HeadersResponse{
 					Response: &eppb.CommonResponse{
 						ClearRouteCache: true,
-						HeaderMutation:  reqenvoy.GenerateHeadersMutation(reqCtx.Request.MutatedHeaders()),
+						HeaderMutation: &eppb.HeaderMutation{
+							SetHeaders: reqenvoy.GenerateHeadersMutation(reqCtx.Request.MutatedHeaders()),
+						},
 					},
 				},
 			},
@@ -90,7 +92,9 @@ func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, 
 					Response: &eppb.CommonResponse{
 						// Necessary so that the new headers are used in the routing decision.
 						ClearRouteCache: true,
-						HeaderMutation:  reqenvoy.GenerateHeadersMutation(reqCtx.Request.MutatedHeaders()),
+						HeaderMutation: &eppb.HeaderMutation{
+							SetHeaders: reqenvoy.GenerateHeadersMutation(reqCtx.Request.MutatedHeaders()),
+						},
 					},
 				},
 			},
