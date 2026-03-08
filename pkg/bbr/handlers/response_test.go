@@ -35,14 +35,14 @@ const testPluginValue = "done"
 // fakeResponsePlugin implements framework.PayloadProcessor for testing response plugin execution.
 type fakeResponsePlugin struct {
 	name     string
-	mutateFn func(ctx context.Context, response *framework.InferenceResponse) (*framework.InferenceResponse, error)
+	mutateFn func(ctx context.Context, response *framework.InferenceResponse) error
 }
 
 func (p *fakeResponsePlugin) TypedName() epp.TypedName {
 	return epp.TypedName{Type: "fake", Name: p.name}
 }
 
-func (p *fakeResponsePlugin) ProcessResponse(ctx context.Context, response *framework.InferenceResponse) (*framework.InferenceResponse, error) {
+func (p *fakeResponsePlugin) ProcessResponse(ctx context.Context, response *framework.InferenceResponse) error {
 	return p.mutateFn(ctx, response)
 }
 
@@ -83,9 +83,9 @@ func TestHandleResponseBody_SinglePlugin(t *testing.T) {
 
 	mutatePlugin := &fakeResponsePlugin{
 		name: "mutator",
-		mutateFn: func(_ context.Context, response *framework.InferenceResponse) (*framework.InferenceResponse, error) {
+		mutateFn: func(_ context.Context, response *framework.InferenceResponse) error {
 			response.Body["mutated"] = true
-			return response, nil
+			return nil
 		},
 	}
 
@@ -114,16 +114,16 @@ func TestHandleResponseBody_MultiplePlugins(t *testing.T) {
 
 	plugin1 := &fakeResponsePlugin{
 		name: "plugin1",
-		mutateFn: func(_ context.Context, response *framework.InferenceResponse) (*framework.InferenceResponse, error) {
+		mutateFn: func(_ context.Context, response *framework.InferenceResponse) error {
 			response.Body["p1"] = testPluginValue
-			return response, nil
+			return nil
 		},
 	}
 	plugin2 := &fakeResponsePlugin{
 		name: "plugin2",
-		mutateFn: func(_ context.Context, response *framework.InferenceResponse) (*framework.InferenceResponse, error) {
+		mutateFn: func(_ context.Context, response *framework.InferenceResponse) error {
 			response.Body["p2"] = testPluginValue
-			return response, nil
+			return nil
 		},
 	}
 
@@ -152,8 +152,8 @@ func TestHandleResponseBody_PluginError(t *testing.T) {
 
 	failingPlugin := &fakeResponsePlugin{
 		name: "failing",
-		mutateFn: func(_ context.Context, _ *framework.InferenceResponse) (*framework.InferenceResponse, error) {
-			return nil, errors.New("failed to execute plugin")
+		mutateFn: func(_ context.Context, _ *framework.InferenceResponse) error {
+			return errors.New("failed to execute plugin")
 		},
 	}
 
@@ -174,8 +174,8 @@ func TestHandleResponseBody_StreamingWithPlugin(t *testing.T) {
 
 	noopPlugin := &fakeResponsePlugin{
 		name: "noop",
-		mutateFn: func(_ context.Context, response *framework.InferenceResponse) (*framework.InferenceResponse, error) {
-			return response, nil
+		mutateFn: func(_ context.Context, response *framework.InferenceResponse) error {
+			return nil
 		},
 	}
 

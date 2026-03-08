@@ -23,9 +23,11 @@ import (
 	basepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/framework"
+	"sigs.k8s.io/gateway-api-inference-extension/pkg/bbr/plugins"
 	logutil "sigs.k8s.io/gateway-api-inference-extension/pkg/common/observability/logging"
 )
 
@@ -125,10 +127,10 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 			},
 		},
 	}
-
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			srv := NewServer(tc.streaming, &fakeDatastore{}, []framework.RequestProcessor{}, []framework.ResponseProcessor{})
+			modelToHeaderPlugin, _ := plugins.NewBodyFieldToHeaderPlugin("model", modelHeader)
+			srv := NewServer(tc.streaming, &fakeDatastore{}, []framework.RequestProcessor{modelToHeaderPlugin}, []framework.ResponseProcessor{})
 			reqCtx := &RequestContext{
 				Request: framework.NewInferenceRequest(),
 			}
@@ -136,7 +138,8 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 			if err != nil {
 				t.Fatalf("HandleRequestBody(): %v", err)
 			}
-			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
+
+			if diff := cmp.Diff(tc.want, got, protocmp.Transform(), cmpopts.SortSlices(func(a, b *extProcPb.ProcessingResponse) bool { return a.String() < b.String() })); diff != "" {
 				t.Errorf("HandleRequestBody returned unexpected response, diff(-want, +got): %v", diff)
 			}
 		})

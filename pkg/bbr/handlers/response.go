@@ -73,8 +73,7 @@ func (s *Server) HandleResponseBody(ctx context.Context, reqCtx *RequestContext,
 		}, nil
 	}
 
-	if _, err := s.runResponsePlugins(ctx, reqCtx.Response); err != nil {
-		logger.Error(err, "Response plugin execution failed")
+	if err := s.runResponsePlugins(ctx, reqCtx.Response); err != nil {
 		return nil, fmt.Errorf("failed to execute response plugins - %w", err)
 	}
 
@@ -100,18 +99,17 @@ func (s *Server) HandleResponseTrailers(trailers *eppb.HttpTrailers) ([]*eppb.Pr
 }
 
 // runResponsePlugins executes response plugins in the order they were registered.
-func (s *Server) runResponsePlugins(ctx context.Context, response *framework.InferenceResponse) (*framework.InferenceResponse, error) {
-	mutatedResponse := response
+func (s *Server) runResponsePlugins(ctx context.Context, response *framework.InferenceResponse) error {
 	var err error
 	for _, plugin := range s.responsePlugins {
 		log.FromContext(ctx).V(logutil.VERBOSE).Info("Executing response plugin", "plugin", plugin.TypedName())
 		before := time.Now()
-		mutatedResponse, err = plugin.ProcessResponse(ctx, response)
+		err = plugin.ProcessResponse(ctx, response)
 		metrics.RecordPluginProcessingLatency(responsePluginExtensionPoint, plugin.TypedName().Type, plugin.TypedName().Name, time.Since(before))
 		if err != nil {
-			return nil, fmt.Errorf("failed to execute response plugin '%s' - %w", plugin.TypedName(), err)
+			return fmt.Errorf("failed to execute response plugin '%s' - %w", plugin.TypedName(), err)
 		}
 	}
 
-	return mutatedResponse, nil
+	return nil
 }

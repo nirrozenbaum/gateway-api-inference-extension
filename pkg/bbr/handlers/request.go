@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"time"
 
-	basepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	eppb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -83,12 +82,14 @@ func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, 
 		return ret, nil
 	}
 
-	if _, err := s.runRequestPlugins(ctx, reqCtx.Request); err != nil {
+	if err := s.runRequestPlugins(ctx, reqCtx.Request); err != nil {
 		return nil, fmt.Errorf("failed to execute request plugins - %w", err)
 	}
 
 	metrics.RecordSuccessCounter()
 	baseModel := s.ds.GetBaseModel(targetModel)
+	// TODO temp until this is implemented as plugin
+	reqCtx.Request.SetHeader(baseModelHeader, baseModel)
 
 	logger.Info("Base model from datastore", "baseModel", baseModel)
 
@@ -98,22 +99,7 @@ func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, 
 				RequestHeaders: &eppb.HeadersResponse{
 					Response: &eppb.CommonResponse{
 						ClearRouteCache: true,
-						HeaderMutation: &eppb.HeaderMutation{
-							SetHeaders: []*basepb.HeaderValueOption{
-								{
-									Header: &basepb.HeaderValue{
-										Key:      modelHeader,
-										RawValue: []byte(targetModel),
-									},
-								},
-								{
-									Header: &basepb.HeaderValue{
-										Key:      baseModelHeader,
-										RawValue: []byte(baseModel),
-									},
-								},
-							},
-						},
+						HeaderMutation:  reqenvoy.GenerateHeadersMutation(reqCtx.Request.MutatedHeaders()),
 					},
 				},
 			},
@@ -129,22 +115,7 @@ func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, 
 					Response: &eppb.CommonResponse{
 						// Necessary so that the new headers are used in the routing decision.
 						ClearRouteCache: true,
-						HeaderMutation: &eppb.HeaderMutation{
-							SetHeaders: []*basepb.HeaderValueOption{
-								{
-									Header: &basepb.HeaderValue{
-										Key:      modelHeader,
-										RawValue: []byte(targetModel),
-									},
-								},
-								{
-									Header: &basepb.HeaderValue{
-										Key:      baseModelHeader,
-										RawValue: []byte(baseModel),
-									},
-								},
-							},
-						},
+						HeaderMutation:  reqenvoy.GenerateHeadersMutation(reqCtx.Request.MutatedHeaders()),
 					},
 				},
 			},
@@ -153,20 +124,19 @@ func (s *Server) HandleRequestBody(ctx context.Context, reqCtx *RequestContext, 
 }
 
 // runRequestPlugins executes request plugins in the order they were registered.
-func (s *Server) runRequestPlugins(ctx context.Context, request *framework.InferenceRequest) (*framework.InferenceRequest, error) {
-	mutatedRequest := request
+func (s *Server) runRequestPlugins(ctx context.Context, request *framework.InferenceRequest) error {
 	var err error
 	for _, plugin := range s.requestPlugins {
 		log.FromContext(ctx).V(logutil.VERBOSE).Info("Executing request plugin", "plugin", plugin.TypedName())
 		before := time.Now()
-		mutatedRequest, err = plugin.ProcessRequest(ctx, request)
+		err = plugin.ProcessRequest(ctx, request)
 		metrics.RecordPluginProcessingLatency(requestPluginExtensionPoint, plugin.TypedName().Type, plugin.TypedName().Name, time.Since(before))
 		if err != nil {
-			return nil, fmt.Errorf("failed to execute request plugin '%s' - %w", plugin.TypedName(), err)
+			return fmt.Errorf("failed to execute request plugin '%s' - %w", plugin.TypedName(), err)
 		}
 	}
 
-	return mutatedRequest, nil
+	return nil
 }
 
 func addStreamedBodyResponse(responses []*eppb.ProcessingResponse, requestBodyBytes []byte) []*eppb.ProcessingResponse {

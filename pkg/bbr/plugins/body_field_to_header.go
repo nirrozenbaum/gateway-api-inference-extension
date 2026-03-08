@@ -97,20 +97,20 @@ func (p *BodyFieldToHeaderPlugin) WithName(name string) *BodyFieldToHeaderPlugin
 	return p
 }
 
-// Execute extracts value from a given body field and sets it as HTTP header.
-func (p *BodyFieldToHeaderPlugin) ProcessRequest(ctx context.Context, request *framework.InferenceRequest) (*framework.InferenceRequest, error) {
+// ProcessRequest extracts value from a given body field and sets it as HTTP header.
+func (p *BodyFieldToHeaderPlugin) ProcessRequest(ctx context.Context, request *framework.InferenceRequest) error {
 	if request == nil || request.Headers == nil || request.Body == nil {
-		return nil, nil // this shouldn't happen
+		return nil // this shouldn't happen
 	}
 
 	// extract field value from body
 	fieldValue, exists := request.Body[p.fieldName]
 	if !exists {
 		// field doesn't exist in body, return headers map unchanged
-		return request, nil
+		return nil
 	}
 
-	request.Headers[p.headerName] = fmt.Sprintf("%v", fieldValue)
+	request.SetHeader(p.headerName, fmt.Sprintf("%v", fieldValue))
 
-	return request, nil
+	return nil
 }

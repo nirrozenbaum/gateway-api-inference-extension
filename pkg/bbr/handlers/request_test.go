@@ -25,6 +25,7 @@ import (
 	basepb "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	extProcPb "github.com/envoyproxy/go-control-plane/envoy/service/ext_proc/v3"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/testing/protocmp"
 	metricsutils "k8s.io/component-base/metrics/testutil"
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -368,7 +369,8 @@ func TestHandleRequestBody(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			server := NewServer(test.streaming, &fakeDatastore{}, []framework.RequestProcessor{}, []framework.ResponseProcessor{})
+			modelToHeaderPlugin, _ := plugins.NewBodyFieldToHeaderPlugin("model", modelHeader)
+			server := NewServer(test.streaming, &fakeDatastore{}, []framework.RequestProcessor{modelToHeaderPlugin}, []framework.ResponseProcessor{})
 			reqCtx := &RequestContext{
 				Request: framework.NewInferenceRequest(),
 			}
@@ -381,7 +383,7 @@ func TestHandleRequestBody(t *testing.T) {
 				return
 			}
 
-			if diff := cmp.Diff(test.want, resp, protocmp.Transform()); diff != "" {
+			if diff := cmp.Diff(test.want, resp, protocmp.Transform(), cmpopts.SortSlices(func(a, b *extProcPb.ProcessingResponse) bool { return a.String() < b.String() })); diff != "" {
 				t.Errorf("HandleRequestBody returned unexpected response, diff(-want, +got): %v", diff)
 			}
 		})

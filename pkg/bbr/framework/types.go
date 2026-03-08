@@ -18,14 +18,30 @@ package framework
 
 func NewInferenceRequest() *InferenceRequest {
 	return &InferenceRequest{
-		Headers: make(map[string]string),
-		Body:    map[string]any{},
+		Headers:        map[string]string{},
+		Body:           make(map[string]any),
+		mutatedHeaders: make(map[string]string),
 	}
 }
 
 type InferenceRequest struct {
+	// original request
 	Headers map[string]string
 	Body    map[string]any
+
+	// mutations
+	mutatedHeaders map[string]string
+}
+
+func (r *InferenceRequest) SetHeader(key string, value string) {
+	if old, ok := r.Headers[key]; !ok || old != value { // if we add or replace a header
+		r.Headers[key] = value
+		r.mutatedHeaders[key] = value
+	}
+}
+
+func (r *InferenceRequest) MutatedHeaders() map[string]string {
+	return r.mutatedHeaders
 }
 
 func NewInferenceResponse() *InferenceResponse {
