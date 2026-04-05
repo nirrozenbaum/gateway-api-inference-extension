@@ -216,15 +216,7 @@ func TestHandleRequestBody(t *testing.T) {
 						RequestBody: &extProcPb.BodyResponse{
 							Response: &extProcPb.CommonResponse{
 								ClearRouteCache: true,
-								HeaderMutation: &extProcPb.HeaderMutation{
-									SetHeaders: []*basepb.HeaderValueOption{
-										{
-											Header: &basepb.HeaderValue{
-												Key: basemodelextractor.BaseModelHeader,
-											},
-										},
-									},
-								},
+								HeaderMutation:  &extProcPb.HeaderMutation{},
 							},
 						},
 					},
@@ -247,11 +239,6 @@ func TestHandleRequestBody(t *testing.T) {
 											Header: &basepb.HeaderValue{
 												Key:      "Content-Length",
 												RawValue: []byte("27"),
-											},
-										},
-										{
-											Header: &basepb.HeaderValue{
-												Key: basemodelextractor.BaseModelHeader,
 											},
 										},
 									},
@@ -318,7 +305,7 @@ func TestHandleRequestBody(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      bodyfieldtoheader.ModelHeader,
+												Key:      "X-Gateway-Model-Name",
 												RawValue: []byte("1"),
 											},
 										},
@@ -352,7 +339,7 @@ func TestHandleRequestBody(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      bodyfieldtoheader.ModelHeader,
+												Key:      "X-Gateway-Model-Name",
 												RawValue: []byte("foo"),
 											},
 										},
@@ -395,7 +382,7 @@ func TestHandleRequestBody(t *testing.T) {
 											},
 											{
 												Header: &basepb.HeaderValue{
-													Key:      bodyfieldtoheader.ModelHeader,
+													Key:      "X-Gateway-Model-Name",
 													RawValue: []byte("foo"),
 												},
 											},
@@ -462,7 +449,7 @@ func TestHandleRequestBody(t *testing.T) {
 											},
 											{
 												Header: &basepb.HeaderValue{
-													Key:      bodyfieldtoheader.ModelHeader,
+													Key:      "X-Gateway-Model-Name",
 													RawValue: []byte("foo"),
 												},
 											},
@@ -518,7 +505,7 @@ func TestHandleRequestBody(t *testing.T) {
 	baseModelToHeaderPlugin := &basemodelextractor.BaseModelToHeaderPlugin{AdaptersStore: basemodelextractor.NewAdaptersStore()}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, bodyfieldtoheader.ModelHeader)
+			modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, "X-Gateway-Model-Name")
 			server := NewServer(test.streaming, []framework.RequestProcessor{modelToHeaderPlugin, baseModelToHeaderPlugin}, []framework.ResponseProcessor{})
 			reqCtx := &RequestContext{
 				CycleState: framework.NewCycleState(),
@@ -565,7 +552,7 @@ func TestHandleRequestBodyWithPluginMetrics(t *testing.T) {
 	metrics.Register()
 	ctx := logutil.NewTestLoggerIntoContext(context.Background())
 
-	modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, bodyfieldtoheader.ModelHeader)
+	modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, "X-Gateway-Model-Name")
 	baseModelToHeaderPlugin := &basemodelextractor.BaseModelToHeaderPlugin{AdaptersStore: basemodelextractor.NewAdaptersStore()}
 	server := NewServer(false, []framework.RequestProcessor{modelToHeaderPlugin, baseModelToHeaderPlugin}, []framework.ResponseProcessor{})
 	reqCtx := &RequestContext{
@@ -657,12 +644,6 @@ func TestHandleRequestBody_BodyMutation(t *testing.T) {
 										SetHeaders: []*basepb.HeaderValueOption{
 											{
 												Header: &basepb.HeaderValue{
-													Key:      basemodelextractor.BaseModelHeader,
-													RawValue: []byte(""),
-												},
-											},
-											{
-												Header: &basepb.HeaderValue{
 													Key:      contentLengthHeader,
 													RawValue: []byte(strconv.Itoa(len(b))),
 												},
@@ -697,12 +678,6 @@ func TestHandleRequestBody_BodyMutation(t *testing.T) {
 									ClearRouteCache: true,
 									HeaderMutation: &extProcPb.HeaderMutation{
 										SetHeaders: []*basepb.HeaderValueOption{
-											{
-												Header: &basepb.HeaderValue{
-													Key:      basemodelextractor.BaseModelHeader,
-													RawValue: []byte(""),
-												},
-											},
 											{
 												Header: &basepb.HeaderValue{
 													Key:      contentLengthHeader,

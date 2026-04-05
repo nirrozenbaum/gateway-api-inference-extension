@@ -58,7 +58,7 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      bodyfieldtoheader.ModelHeader,
+												Key:      "X-Gateway-Model-Name",
 												RawValue: []byte("foo"),
 											},
 										},
@@ -96,7 +96,7 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 										},
 										{
 											Header: &basepb.HeaderValue{
-												Key:      bodyfieldtoheader.ModelHeader,
+												Key:      "X-Gateway-Model-Name",
 												RawValue: []byte("foo"),
 											},
 										},
@@ -134,7 +134,7 @@ func TestHandleRequestBodyStreaming(t *testing.T) {
 	baseModelToHeaderPlugin := &basemodelextractor.BaseModelToHeaderPlugin{AdaptersStore: basemodelextractor.NewAdaptersStore()}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, bodyfieldtoheader.ModelHeader)
+			modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, "X-Gateway-Model-Name")
 			srv := NewServer(tc.streaming, []framework.RequestProcessor{modelToHeaderPlugin, baseModelToHeaderPlugin}, []framework.ResponseProcessor{})
 			reqCtx := &RequestContext{
 				CycleState: framework.NewCycleState(),
