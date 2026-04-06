@@ -177,7 +177,7 @@ func (r *Runner) Run(ctx context.Context) error {
 	if len(opts.PluginSpecs) == 0 {
 		setupLog.Info("No BBR plugins are specified. Running BBR with the default behavior.")
 
-		modelToHeaderPlugin, err := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, "X-Gateway-Model-Name")
+		modelToHeaderPlugin, err := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, bodyfieldtoheader.ModelHeader)
 		if err != nil {
 			setupLog.Error(err, "Failed to create plugin", "pluginType", bodyfieldtoheader.BodyFieldToHeaderPluginType)
 			return err

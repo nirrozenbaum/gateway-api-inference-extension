@@ -305,7 +305,7 @@ func TestHandleRequestBody(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      "X-Gateway-Model-Name",
+												Key:      bodyfieldtoheader.ModelHeader,
 												RawValue: []byte("1"),
 											},
 										},
@@ -339,7 +339,7 @@ func TestHandleRequestBody(t *testing.T) {
 									SetHeaders: []*basepb.HeaderValueOption{
 										{
 											Header: &basepb.HeaderValue{
-												Key:      "X-Gateway-Model-Name",
+												Key:      bodyfieldtoheader.ModelHeader,
 												RawValue: []byte("foo"),
 											},
 										},
@@ -382,7 +382,7 @@ func TestHandleRequestBody(t *testing.T) {
 											},
 											{
 												Header: &basepb.HeaderValue{
-													Key:      "X-Gateway-Model-Name",
+													Key:      bodyfieldtoheader.ModelHeader,
 													RawValue: []byte("foo"),
 												},
 											},
@@ -449,7 +449,7 @@ func TestHandleRequestBody(t *testing.T) {
 											},
 											{
 												Header: &basepb.HeaderValue{
-													Key:      "X-Gateway-Model-Name",
+													Key:      bodyfieldtoheader.ModelHeader,
 													RawValue: []byte("foo"),
 												},
 											},
@@ -505,7 +505,7 @@ func TestHandleRequestBody(t *testing.T) {
 	baseModelToHeaderPlugin := &basemodelextractor.BaseModelToHeaderPlugin{AdaptersStore: basemodelextractor.NewAdaptersStore()}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, "X-Gateway-Model-Name")
+			modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, bodyfieldtoheader.ModelHeader)
 			server := NewServer(test.streaming, []framework.RequestProcessor{modelToHeaderPlugin, baseModelToHeaderPlugin}, []framework.ResponseProcessor{})
 			reqCtx := &RequestContext{
 				CycleState: framework.NewCycleState(),
@@ -552,7 +552,7 @@ func TestHandleRequestBodyWithPluginMetrics(t *testing.T) {
 	metrics.Register()
 	ctx := logutil.NewTestLoggerIntoContext(context.Background())
 
-	modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, "X-Gateway-Model-Name")
+	modelToHeaderPlugin, _ := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, bodyfieldtoheader.ModelHeader)
 	baseModelToHeaderPlugin := &basemodelextractor.BaseModelToHeaderPlugin{AdaptersStore: basemodelextractor.NewAdaptersStore()}
 	server := NewServer(false, []framework.RequestProcessor{modelToHeaderPlugin, baseModelToHeaderPlugin}, []framework.ResponseProcessor{})
 	reqCtx := &RequestContext{

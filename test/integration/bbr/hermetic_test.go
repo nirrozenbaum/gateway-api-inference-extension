@@ -161,7 +161,7 @@ func TestResponsePlugins(t *testing.T) {
 			name: "response plugin mutates response body",
 			createHarness: func(t *testing.T, ctx context.Context) *BBRHarness {
 				t.Helper()
-				modelToHeaderPlugin, err := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, "X-Gateway-Model-Name")
+				modelToHeaderPlugin, err := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, bodyfieldtoheader.ModelHeader)
 				require.NoError(t, err, "failed to create body-field-to-header plugin")
 				baseModelPlugin := &basemodelextractor.BaseModelToHeaderPlugin{AdaptersStore: basemodelextractor.NewAdaptersStore()}
 				return NewBBRHarnessWithPlugins(t, ctx, false,

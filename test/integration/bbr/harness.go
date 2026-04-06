@@ -55,7 +55,7 @@ type BBRHarness struct {
 // BodyFieldToHeaderPlugin for model extraction and no response plugins.
 func NewBBRHarness(t *testing.T, ctx context.Context, streaming bool) *BBRHarness {
 	t.Helper()
-	modelToHeaderPlugin, err := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, "X-Gateway-Model-Name")
+	modelToHeaderPlugin, err := bodyfieldtoheader.NewBodyFieldToHeaderPlugin(modelField, bodyfieldtoheader.ModelHeader)
 	require.NoError(t, err, "failed to create body-field-to-header plugin")
 
 	testConfigMap := &corev1.ConfigMap{
